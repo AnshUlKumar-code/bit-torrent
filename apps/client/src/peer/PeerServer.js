@@ -41,6 +41,10 @@ function startPeerServer(port, infoHash, peerId, options = {}) {
 
             if (!handshakeCompleted && received.length >= 68) {
                 try {
+                    console.log(
+    "Raw handshake bytes:",
+    received.subarray(0, 24).toString("hex")
+);
                     const handshake = parseHandshake(
                         received.subarray(0, 68)
                     );
@@ -56,7 +60,6 @@ function startPeerServer(port, infoHash, peerId, options = {}) {
 
                     socket.write(createHandshake(infoHash, peerId));
 
-                    // Advertise available pieces.
                     if (downloadDir && fileName) {
                         const bitfield = createBitfield(pieceCount);
 
@@ -155,8 +158,8 @@ function startPeerServer(port, infoHash, peerId, options = {}) {
         });
     });
 
-    server.listen(port, () => {
-        console.log(`Peer server listening on port ${port}`);
+    server.listen(port, "0.0.0.0", () => {
+        console.log(`Peer server listening on 0.0.0.0:${port}`);
     });
 
     return server;

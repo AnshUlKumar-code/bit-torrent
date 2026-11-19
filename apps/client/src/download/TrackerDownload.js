@@ -22,13 +22,13 @@ async function downloadFromTracker({
     downloadDir
 }) {
     let server;
+    let heartbeat;
 
     try {
         const pieceCount = Math.ceil(
             torrent.length / torrent.pieceLength
         );
 
-        // Start our own peer server.
         server = startPeerServer(
             peerPort,
             torrent.infoHash,
@@ -44,7 +44,7 @@ async function downloadFromTracker({
 
         console.log("Peer server started on port:", peerPort);
 
-        // Register ourselves with the tracker.
+        // Register downloader with tracker.
         const trackerResponse = await announce(
             torrent.infoHash,
             peerId,
@@ -55,43 +55,71 @@ async function downloadFromTracker({
             throw new Error("Tracker registration failed");
         }
 
+        // Refresh registration every 45 seconds.
+        heartbeat = setInterval(async () => {
+            try {
+                await announce(
+                    torrent.infoHash,
+                    peerId,
+                    peerPort
+                );
+
+                console.log("Downloader heartbeat sent:", peerId);
+            } catch (error) {
+                console.log(
+                    "Downloader heartbeat failed:",
+                    error.message
+                );
+            }
+        }, 45 * 1000);
+
+        server.once("close", () => {
+            clearInterval(heartbeat);
+            console.log("Downloader heartbeat stopped:", peerId);
+        });
+
         const peers = trackerResponse.peers || [];
 
         console.log("Peers discovered:", peers.length);
 
-        if (peers.length === 0) {
+        // Keep only usable peers.
+        const usablePeers = peers.filter(
+            peer =>
+                peer.ip &&
+                Number.isInteger(peer.port) &&
+                peer.port > 0 &&
+                peer.port !== peerPort
+        );
+
+        if (usablePeers.length === 0) {
             throw new Error(
-                "No other peers found. Ask another peer to seed this torrent."
+                "No usable peers found. Ask another peer to seed this torrent."
             );
         }
 
-        // Select the first available peer.
-        const peer = peers.find(
-            item => item.ip && item.port && item.port !== peerPort
-        );
+        console.log("Usable peers:", usablePeers.length);
 
-        if (!peer) {
-            throw new Error("No usable peer found");
-        }
-
-        console.log("Connecting to peer:", peer.ip, peer.port);
-
-        // Download the file from that peer.
+        // Download pieces concurrently from the available peers.
         const result = await downloadFile({
-            peer,
+            peers: usablePeers,
             torrent,
             downloadDir,
             peerId
         });
 
-        console.log("Download completed successfully");
+        console.log("Download completed successfully.");
 
         return {
             ...result,
-            server
+            server,
+            infoHash: torrent.infoHash
         };
 
     } catch (error) {
+        if (heartbeat) {
+            clearInterval(heartbeat);
+        }
+
         if (server) {
             server.close();
         }

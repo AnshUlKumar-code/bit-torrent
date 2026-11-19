@@ -1,13 +1,18 @@
+
 const fs = require("fs");
 const path = require("path");
 const verifyPiece = require("../verification/PieceVerifier");
+
+function getPieceDirectory(downloadDir, fileName) {
+    return path.join(downloadDir, ".pieces", fileName);
+}
 
 function savePiece(downloadDir, fileName, pieceIndex, pieceData, expectedHash) {
     if (!verifyPiece(pieceData, expectedHash)) {
         throw new Error("Piece verification failed");
     }
 
-    const pieceDir = path.join(downloadDir, fileName);
+    const pieceDir = getPieceDirectory(downloadDir, fileName);
 
     fs.mkdirSync(pieceDir, { recursive: true });
 
@@ -19,13 +24,23 @@ function savePiece(downloadDir, fileName, pieceIndex, pieceData, expectedHash) {
 }
 
 function readPiece(downloadDir, fileName, pieceIndex) {
-    const piecePath = path.join(
+    const newPiecePath = path.join(
+        getPieceDirectory(downloadDir, fileName),
+        `${pieceIndex}.piece`
+    );
+
+    // Support older piece files created before this storage update.
+    const oldPiecePath = path.join(
         downloadDir,
         fileName,
         `${pieceIndex}.piece`
     );
 
-    return fs.readFileSync(piecePath);
+    if (fs.existsSync(newPiecePath)) {
+        return fs.readFileSync(newPiecePath);
+    }
+
+    return fs.readFileSync(oldPiecePath);
 }
 
 function assembleFile(downloadDir, fileName, pieceCount, outputPath) {
@@ -37,6 +52,7 @@ function assembleFile(downloadDir, fileName, pieceCount, outputPath) {
 
     const completeFile = Buffer.concat(pieces);
 
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
     fs.writeFileSync(outputPath, completeFile);
 
     return completeFile.length;
