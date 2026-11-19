@@ -1,0 +1,38 @@
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Downloaded files and temporary data
+data/downloads/
+data/sessions/
+data/torrents/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# IDE and editor
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak

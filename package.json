@@ -1,0 +1,16 @@
+
+{
+  "name": "u-torrent",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/client",
+    "apps/tracker-server",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev:tracker": "npm run dev --workspace=@utorrent/tracker-server",
+    "dev:client": "npm run dev --workspace=@utorrent/client",
+    "dev:web": "npm run dev --workspace=@utorrent/web"
+  }
+}
