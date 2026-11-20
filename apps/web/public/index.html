@@ -1375,20 +1375,31 @@
                             ${t.infoHash ? `<span class="torrent-hash" title="Click to copy SHA-1 Hash" onclick="navigator.clipboard.writeText('${t.infoHash}'); showToast('Info-hash copied!');">${t.infoHash.substring(0, 10)}...${t.infoHash.substring(34)}</span>` : ""}
                         </div>
                         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            <!-- 1. Direct Download to device (Phone or PC) -->
+                            <a href="${API_BASE}/api/downloads/file/${encodeURIComponent(t.name || (t.torrentFileName ? t.torrentFileName.replace('.torrent','') : 'download'))}" download class="action-link-btn" style="color: var(--accent-green); background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4);" title="Download full file directly to this device">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                Download File
+                            </a>
+
+                            <!-- 2. Get .torrent file -->
                             ${t.torrentFileName ? `
                                 <a href="${API_BASE}/api/torrents/download-file/${encodeURIComponent(t.torrentFileName)}" download class="action-link-btn" title="Download .torrent file to phone or laptop">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
                                     .torrent
                                 </a>
                             ` : ''}
-                            ${(progress >= 100 || statusClass === 'seeding' || statusClass === 'completed') ? `
-                                <a href="${API_BASE}/api/downloads/file/${encodeURIComponent(t.name || (t.torrentFileName ? t.torrentFileName.replace('.torrent','') : 'download'))}" download class="action-link-btn" style="color: var(--accent-green); border-color: rgba(16, 185, 129, 0.4);" title="Save downloaded file to device">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                                    Save File
-                                </a>
+
+                            <!-- 3. Start P2P swarm transfer (if not already downloading) -->
+                            ${statusClass !== 'downloading' && t.torrentFileName ? `
+                                <button class="action-link-btn" onclick="quickDownloadTorrent('${t.torrentFileName}')" title="Start BitTorrent swarm download">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="8 17 12 21 16 17"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path></svg>
+                                    P2P Download
+                                </button>
                             ` : ''}
+
+                            <!-- 4. Stop button -->
                             ${t.status !== 'stopped' ? `
-                                <button class="btn-danger" onclick="stopTorrent('${t.peerId || ''}', '${t.infoHash || ''}')">
+                                <button class="btn-danger" style="padding: 0.35rem 0.65rem;" onclick="stopTorrent('${t.peerId || ''}', '${t.infoHash || ''}')">
                                     Stop
                                 </button>
                             ` : `<span style="font-size: 0.75rem; color: var(--text-muted);">Stopped</span>`}
@@ -1545,6 +1556,27 @@
         }
 
         // Actions
+        async function quickDownloadTorrent(torrentFileName) {
+            if (!torrentFileName) return;
+            try {
+                showToast(`Connecting to swarm for ${torrentFileName}...`);
+                const res = await fetch(`${API_BASE}/api/torrents/download`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ torrentFileName })
+                });
+                const data = await res.json();
+                if (res.status === 202 || res.status === 200) {
+                    showToast(`BitTorrent download started!`);
+                    fetchTorrents();
+                } else {
+                    showToast(data.message || "Failed to start transfer", "error");
+                }
+            } catch (err) {
+                showToast("Network error: " + err.message, "error");
+            }
+        }
+
         async function submitDownload() {
             const selectVal = document.getElementById("dl-select-torrent").value;
             const inputVal = document.getElementById("dl-input-torrent").value.trim();

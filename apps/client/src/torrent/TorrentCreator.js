@@ -2,11 +2,12 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const encode = require("./BencodeEncoder");
+const config = require("../config");
 
 function createTorrent(
     filePath,
     outputPath,
-    announceUrl = "http://localhost:4000/announce"
+    announceUrl = config.trackerUrl
 ) {
     const fileData = fs.readFileSync(filePath);
     const pieceLength = 256 * 1024;

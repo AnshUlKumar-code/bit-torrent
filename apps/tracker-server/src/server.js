@@ -39,8 +39,11 @@ function extractInfoHashFromUrl(rawUrl) {
     return null;
 }
 
-// Standard BitTorrent BEP 3 & BEP 23 HTTP GET Announce
-app.get("/announce", (req, res) => {
+// Standard BitTorrent BEP 3 & BEP 23 HTTP GET Announce (handles both /announce and /)
+app.get(["/announce", "/"], (req, res) => {
+    if (!req.url.includes("info_hash") && (req.path === "/" || req.url === "/")) {
+        return res.status(200).send("uTorrent BEP 3 Tracker is running. Announce endpoint is /announce");
+    }
     const infoHash = extractInfoHashFromUrl(req.originalUrl || req.url);
     const peerId = req.query.peer_id;
     const port = parseInt(req.query.port, 10);

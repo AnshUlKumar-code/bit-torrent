@@ -47,10 +47,23 @@ function parseDictionaryPeers(list) {
 }
 
 async function announce(infoHash, peerId, port, options = {}) {
-    const trackerUrl = options.trackerUrl || config.trackerUrl;
+    let trackerUrl = options.trackerUrl || config.trackerUrl;
 
-    if (!trackerUrl.startsWith("http://") && !trackerUrl.startsWith("https://")) {
+    if (!trackerUrl || (!trackerUrl.startsWith("http://") && !trackerUrl.startsWith("https://"))) {
         throw new Error(`Unsupported tracker protocol (only HTTP/HTTPS supported): ${trackerUrl}`);
+    }
+
+    // Auto-normalize tracker URL: ensure /announce endpoint is present if omitted
+    try {
+        const parsed = new URL(trackerUrl);
+        if (!parsed.pathname.endsWith("/announce")) {
+            parsed.pathname = (parsed.pathname === "/" ? "" : parsed.pathname) + "/announce";
+            trackerUrl = parsed.toString();
+        }
+    } catch {
+        if (!trackerUrl.includes("/announce")) {
+            trackerUrl = `${trackerUrl.replace(/\/+$/, "")}/announce`;
+        }
     }
 
     const infoHashBuf = Buffer.isBuffer(infoHash)

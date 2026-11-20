@@ -88,44 +88,65 @@ async function startSeeding({
             candidateTrackers.push(torrent.announce);
         }
 
-        const trackerUrl = candidateTrackers[0] || require("../config").trackerUrl;
+        const clientConfig = require("../config");
+        if (clientConfig.trackerUrl && !candidateTrackers.includes(clientConfig.trackerUrl)) {
+            candidateTrackers.push(clientConfig.trackerUrl);
+        }
 
-        // Register the seeder immediately (left = 0, event = completed)
-        await announce(
-            torrent.infoHash,
-            peerId,
-            peerPort,
-            {
-                trackerUrl,
-                left: 0,
-                event: "completed"
-            }
-        );
+        // Also add embedded client tracker as fallback
+        const embeddedTracker = `http://127.0.0.1:${clientConfig.port || 3000}/announce`;
+        if (!candidateTrackers.includes(embeddedTracker)) {
+            candidateTrackers.push(embeddedTracker);
+        }
 
-        console.log("File is now being shared:", torrent.name);
+        let activeTrackerUrl = null;
 
-        // Refresh registration every 45 seconds.
-        heartbeat = setInterval(async () => {
+        for (const candidate of candidateTrackers) {
             try {
+                console.log("Seeder registering with tracker:", candidate);
                 await announce(
                     torrent.infoHash,
                     peerId,
                     peerPort,
                     {
-                        trackerUrl,
-                        left: 0
+                        trackerUrl: candidate,
+                        left: 0,
+                        event: "completed"
                     }
                 );
-
-                console.log("Seeder heartbeat sent:", peerId);
-            } catch (error) {
-                console.log("Heartbeat failed:", error.message);
+                activeTrackerUrl = candidate;
+                console.log(`Successfully registered seeder with: ${candidate}`);
+                break;
+            } catch (err) {
+                console.warn(`Tracker registration to ${candidate} failed (${err.message}). Trying fallback...`);
             }
-        }, 45 * 1000);
+        }
+
+        console.log("File is now being shared by seeder:", torrent.name, "Port:", peerPort);
+
+        // Refresh registration every 45 seconds if a tracker is active
+        if (activeTrackerUrl) {
+            heartbeat = setInterval(async () => {
+                try {
+                    await announce(
+                        torrent.infoHash,
+                        peerId,
+                        peerPort,
+                        {
+                            trackerUrl: activeTrackerUrl,
+                            left: 0
+                        }
+                    );
+                    console.log("Seeder heartbeat sent:", peerId);
+                } catch (error) {
+                    console.log("Heartbeat failed:", error.message);
+                }
+            }, 45 * 1000);
+        }
 
         // Stop heartbeat when the peer server closes.
         server.once("close", () => {
-            clearInterval(heartbeat);
+            if (heartbeat) clearInterval(heartbeat);
             console.log("Seeder heartbeat stopped:", peerId);
         });
 

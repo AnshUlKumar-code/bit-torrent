@@ -112,8 +112,8 @@ function extractInfoHashFromUrl(rawUrl) {
     return null;
 }
 
-// BEP 3 / BEP 23 HTTP GET Announce
-app.get("/announce", (req, res) => {
+// BEP 3 / BEP 23 HTTP GET Announce (handles both /announce and /announce/)
+app.all(["/announce", "/announce/"], (req, res) => {
     const infoHash = extractInfoHashFromUrl(req.originalUrl || req.url);
     const peerId = req.query.peer_id;
     const port = parseInt(req.query.port, 10);
@@ -311,18 +311,67 @@ app.get("/api/torrents/download-file/:fileName", (req, res) => {
     }
 });
 
-// Download finished transferred file directly to laptop or mobile
+// Download any seeded, finished, or uploaded file directly to laptop or mobile
 app.get("/api/downloads/file/:fileName", (req, res) => {
     try {
-        const cleanName = path.basename(req.params.fileName);
-        let filePath = path.join(downloadDirectory, cleanName);
-        if (!fs.existsSync(filePath)) {
-            filePath = path.join(process.cwd(), "data/uploads", cleanName);
+        const rawName = decodeURIComponent(req.params.fileName);
+        const cleanName = path.basename(rawName);
+
+        // 1. Check in activeTorrents (find seeded file by name or outputPath)
+        for (const t of activeTorrents.values()) {
+            if (
+                t.name === cleanName ||
+                t.name === rawName ||
+                t.torrentFileName === cleanName ||
+                (t.outputPath && path.basename(t.outputPath) === cleanName)
+            ) {
+                if (t.outputPath && fs.existsSync(t.outputPath)) {
+                    return res.download(t.outputPath, cleanName);
+                }
+            }
         }
-        if (!fs.existsSync(filePath)) {
-            return res.status(404).json({ success: false, message: "File not found on server" });
+
+        // 2. Check downloadDirectory (data/downloads/<name>)
+        const dlPath = path.join(downloadDirectory, cleanName);
+        if (fs.existsSync(dlPath) && fs.statSync(dlPath).isFile()) {
+            return res.download(dlPath, cleanName);
         }
-        res.download(filePath, cleanName);
+
+        // 3. Check client-downloads subdirectory (data/downloads/client-downloads/<name>)
+        const subDlPath = path.join(downloadDirectory, "client-downloads", cleanName);
+        if (fs.existsSync(subDlPath) && fs.statSync(subDlPath).isFile()) {
+            return res.download(subDlPath, cleanName);
+        }
+
+        // 4. Check data/uploads/<name>
+        const uploadPath = path.join(process.cwd(), "data/uploads", cleanName);
+        if (fs.existsSync(uploadPath) && fs.statSync(uploadPath).isFile()) {
+            return res.download(uploadPath, cleanName);
+        }
+
+        // 5. Check project root directory
+        const rootPath = path.resolve(__dirname, "../../../", cleanName);
+        if (fs.existsSync(rootPath) && fs.statSync(rootPath).isFile()) {
+            return res.download(rootPath, cleanName);
+        }
+
+        // 6. Check if assembled file can be created from stored pieces in data/downloads/.pieces/
+        const pieceDir = path.join(downloadDirectory, ".pieces", cleanName);
+        if (fs.existsSync(pieceDir)) {
+            const pieceFiles = fs.readdirSync(pieceDir).filter(f => f.endsWith(".piece"));
+            if (pieceFiles.length > 0) {
+                pieceFiles.sort((a, b) => parseInt(a) - parseInt(b));
+                const assembledPath = path.join(downloadDirectory, cleanName);
+                const pieces = pieceFiles.map(f => fs.readFileSync(path.join(pieceDir, f)));
+                fs.writeFileSync(assembledPath, Buffer.concat(pieces));
+                return res.download(assembledPath, cleanName);
+            }
+        }
+
+        return res.status(404).json({
+            success: false,
+            message: `File "${cleanName}" not found on server`
+        });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
@@ -578,14 +627,26 @@ app.post("/api/torrents/download", async (req, res) => {
         const torrentKey = `${parsedTorrent.infoHash}_${selectedPeerId}`;
         activeTorrents.set(torrentKey, torrentState);
 
-        console.log("Starting torrent download:", torrentFileName);
+        // Automatically include any active local seeders running for this torrent
+        const localSeeders = [];
+        for (const [pId, serverInfo] of activePeerServers.entries()) {
+            if (serverInfo.infoHash === parsedTorrent.infoHash && serverInfo.peerPort !== selectedPeerPort) {
+                localSeeders.push({ ip: "127.0.0.1", port: serverInfo.peerPort, peerId: pId });
+            }
+        }
+        const combinedPeers = [
+            ...(Array.isArray(peers) ? peers : []),
+            ...localSeeders
+        ];
+
+        console.log("Starting torrent download:", torrentFileName, "Local seeders found:", localSeeders.length);
 
         const downloadPromise = downloadTorrent({
             torrentPath,
             peerId: selectedPeerId,
             peerPort: selectedPeerPort,
             downloadDir: path.join(downloadDirectory, "client-downloads"),
-            peers: Array.isArray(peers) ? peers : [],
+            peers: combinedPeers,
             onProgress: (progressData) => {
                 torrentState.downloadedPieces = progressData.downloadedPieces;
                 torrentState.skippedPieces = progressData.skippedPieces;
