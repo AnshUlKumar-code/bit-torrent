@@ -33,6 +33,133 @@ if (fs.existsSync(webPublicDirectory)) {
     app.use(express.static(webPublicDirectory));
 }
 
+// Embedded BitTorrent Tracker Registry for cloud deployments
+const embeddedTrackerPeers = new Map();
+const TRACKER_PEER_TIMEOUT = 2 * 60 * 1000;
+
+function extractInfoHashFromUrl(rawUrl) {
+    const match = rawUrl.match(/[?&]info_hash=([^&]+)/);
+    if (!match) return null;
+    const rawVal = match[1];
+
+    const bytes = [];
+    for (let i = 0; i < rawVal.length; i++) {
+        if (rawVal[i] === "%" && i + 2 < rawVal.length) {
+            bytes.push(parseInt(rawVal.substring(i + 1, i + 3), 16));
+            i += 2;
+        } else {
+            bytes.push(rawVal.charCodeAt(i));
+        }
+    }
+    const buf = Buffer.from(bytes);
+    if (buf.length === 20) {
+        return buf.toString("hex").toLowerCase();
+    }
+    if (/^[a-fA-F0-9]{40}$/.test(rawVal)) {
+        return rawVal.toLowerCase();
+    }
+    return null;
+}
+
+// BEP 3 / BEP 23 HTTP GET Announce
+app.get("/announce", (req, res) => {
+    const infoHash = extractInfoHashFromUrl(req.originalUrl || req.url);
+    const peerId = req.query.peer_id;
+    const port = parseInt(req.query.port, 10);
+    const isCompact = req.query.compact == 1 || req.query.compact === "1" || req.query.compact === true || !req.query.compact;
+
+    if (!infoHash || !peerId || isNaN(port) || port < 1 || port > 65535) {
+        res.setHeader("Content-Type", "text/plain");
+        return res.status(400).send("d14:failure reason44:Missing or invalid info_hash, peer_id, or porte");
+    }
+
+    let clientIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || req.ip || "127.0.0.1";
+    if (clientIp.includes(",")) clientIp = clientIp.split(",")[0].trim();
+    clientIp = clientIp.replace(/^.*:/, "");
+    if (!clientIp || clientIp === "1") clientIp = "127.0.0.1";
+
+    if (!embeddedTrackerPeers.has(infoHash)) {
+        embeddedTrackerPeers.set(infoHash, new Map());
+    }
+    const peersMap = embeddedTrackerPeers.get(infoHash);
+    peersMap.set(peerId, { peerId, port, ip: clientIp, lastSeen: Date.now() });
+
+    const now = Date.now();
+    for (const [pId, p] of peersMap.entries()) {
+        if (now - p.lastSeen > TRACKER_PEER_TIMEOUT) {
+            peersMap.delete(pId);
+        }
+    }
+
+    const peersList = [];
+    for (const p of peersMap.values()) {
+        if (p.peerId !== peerId) {
+            peersList.push(p);
+        }
+    }
+
+    const encodeBencode = require("./torrent/BencodeEncoder");
+
+    if (isCompact) {
+        const compactBuffer = Buffer.alloc(peersList.length * 6);
+        let offset = 0;
+
+        for (const p of peersList) {
+            let ipStr = (p.ip || "127.0.0.1").replace(/^.*:/, "");
+            if (!ipStr || ipStr === "1") ipStr = "127.0.0.1";
+            const octets = ipStr.split(".").map(Number);
+
+            if (octets.length === 4 && !octets.some(isNaN)) {
+                octets.forEach((octet, i) => compactBuffer.writeUInt8(octet, offset + i));
+                compactBuffer.writeUInt16BE(p.port, offset + 4);
+                offset += 6;
+            }
+        }
+
+        const responsePayload = {
+            interval: 1800,
+            "min interval": 300,
+            complete: 1,
+            incomplete: 0,
+            peers: compactBuffer.subarray(0, offset)
+        };
+
+        res.setHeader("Content-Type", "text/plain");
+        return res.send(encodeBencode(responsePayload));
+    }
+
+    const responsePayload = {
+        interval: 1800,
+        "min interval": 300,
+        complete: 1,
+        incomplete: 0,
+        peers: peersList.map(p => ({
+            "peer id": Buffer.from(p.peerId, "latin1"),
+            ip: Buffer.from(p.ip, "utf8"),
+            port: p.port
+        }))
+    };
+
+    res.setHeader("Content-Type", "text/plain");
+    return res.send(encodeBencode(responsePayload));
+});
+
+app.post("/announce", (req, res) => {
+    const { infoHash, peerId, port } = req.body;
+    if (!infoHash || !peerId || !port) {
+        return res.status(400).json({ success: false, message: "Missing params" });
+    }
+    if (!embeddedTrackerPeers.has(infoHash)) {
+        embeddedTrackerPeers.set(infoHash, new Map());
+    }
+    embeddedTrackerPeers.get(infoHash).set(peerId, { peerId, port, ip: req.ip, lastSeen: Date.now() });
+    const peers = [];
+    for (const p of embeddedTrackerPeers.get(infoHash).values()) {
+        if (p.peerId !== peerId) peers.push({ peerId: p.peerId, port: p.port, ip: p.ip });
+    }
+    res.json({ success: true, peers });
+});
+
 // Health API
 app.get("/api/health", (req, res) => {
     res.status(200).json({

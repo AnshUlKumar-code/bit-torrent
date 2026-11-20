@@ -9,6 +9,8 @@
     "apps/web"
   ],
   "scripts": {
+    "start": "node apps/client/src/index.js",
+    "build": "echo 'Build complete'",
     "dev:tracker": "npm run dev --workspace=@utorrent/tracker-server",
     "dev:client": "npm run dev --workspace=@utorrent/client",
     "dev:web": "npm run dev --workspace=@utorrent/web"
