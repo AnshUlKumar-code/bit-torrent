@@ -668,6 +668,227 @@
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
+
+        /* Upload Dropzone Cards (Touch & Mobile Friendly) */
+        .upload-dropzone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-md);
+            padding: 1.5rem 1rem;
+            text-align: center;
+            background: var(--bg-surface-elevated);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            user-select: none;
+        }
+
+        .upload-dropzone:hover, .upload-dropzone.active {
+            border-color: var(--accent-green);
+            background: rgba(16, 185, 129, 0.05);
+            transform: translateY(-1px);
+        }
+
+        .upload-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--accent-green);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upload-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #fff;
+        }
+
+        .upload-subtitle {
+            font-size: 0.775rem;
+            color: var(--text-secondary);
+        }
+
+        .upload-status {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.4rem 0.75rem;
+            border-radius: var(--radius-sm);
+            width: 100%;
+        }
+
+        .upload-status.loading {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent-cyan);
+        }
+
+        .upload-status.success {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+        }
+
+        .upload-status.error {
+            background: rgba(244, 63, 94, 0.15);
+            color: var(--accent-rose);
+        }
+
+        .divider-text {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin: 0.25rem 0;
+        }
+
+        .divider-text::before, .divider-text::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .divider-text:not(:empty)::before {
+            margin-right: 0.75rem;
+        }
+
+        .divider-text:not(:empty)::after {
+            margin-left: 0.75rem;
+        }
+
+        details.advanced-panel {
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 0.75rem 1rem;
+            font-size: 0.825rem;
+        }
+
+        details.advanced-panel summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-secondary);
+            user-select: none;
+            outline: none;
+        }
+
+        details.advanced-panel summary:hover {
+            color: #fff;
+        }
+
+        details.advanced-panel[open] summary {
+            margin-bottom: 0.75rem;
+            color: var(--accent-green);
+        }
+
+        .action-link-btn {
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.35rem 0.65rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            transition: all 0.2s;
+        }
+
+        .action-link-btn:hover {
+            color: #fff;
+            border-color: var(--accent-green);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        /* Mobile & Tablet Responsive Adjustments */
+        @media (max-width: 768px) {
+            header {
+                padding: 0.75rem 1rem;
+            }
+            .brand-subtitle {
+                display: none;
+            }
+            .status-indicators {
+                gap: 0.5rem;
+            }
+            .status-pill {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.7rem;
+            }
+            main {
+                padding: 1rem;
+                gap: 1.25rem;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+            .stat-card {
+                padding: 1rem;
+            }
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 1rem;
+                gap: 0.75rem;
+            }
+            .action-buttons {
+                flex-direction: column;
+                width: 100%;
+            }
+            .action-buttons button {
+                width: 100%;
+                justify-content: center;
+                padding: 0.75rem 1rem;
+            }
+            .modal-backdrop {
+                padding: 0.75rem;
+            }
+            .modal {
+                max-width: 100%;
+                border-radius: var(--radius-md);
+            }
+            .modal-body {
+                padding: 1.25rem 1rem;
+                max-height: 75vh;
+                overflow-y: auto;
+            }
+            .torrent-card {
+                padding: 1rem;
+            }
+            .torrent-top {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            .torrent-bottom {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            .meta-group {
+                flex-wrap: wrap;
+                gap: 0.75rem;
+            }
+            .toast-container {
+                left: 1rem;
+                right: 1rem;
+                bottom: 1rem;
+            }
+            .toast {
+                min-width: auto;
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -811,30 +1032,53 @@
                 <button class="modal-close" onclick="closeModal('modal-download')">✕</button>
             </div>
             <div class="modal-body">
+                <!-- Direct File Upload from Mobile / Laptop -->
                 <div class="form-group">
-                    <label class="form-label">Select .torrent File</label>
+                    <label class="form-label">Upload .torrent From Device (Laptop / Mobile)</label>
+                    <div class="upload-dropzone" onclick="document.getElementById('dl-device-file').click()">
+                        <input type="file" id="dl-device-file" accept=".torrent" style="display:none;" onchange="handleTorrentFileUpload(this)">
+                        <div class="upload-icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                        </div>
+                        <div class="upload-title">Choose .torrent File</div>
+                        <div class="upload-subtitle">Click on laptop or tap on phone to browse files</div>
+                        <div id="dl-upload-status" class="upload-status" style="display:none;"></div>
+                    </div>
+                </div>
+
+                <div class="divider-text">OR CHOOSE FROM EXISTING TORRENTS</div>
+
+                <div class="form-group">
+                    <label class="form-label">Select .torrent In Library</label>
                     <select class="form-select" id="dl-select-torrent">
                         <option value="">-- Choose from data/torrents --</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Or Custom Torrent File Name</label>
-                    <input type="text" class="form-input" id="dl-input-torrent" placeholder="e.g. sample.torrent">
-                    <span class="form-hint">File must be located in data/torrents directory</span>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Local TCP Listening Port</label>
-                    <input type="number" class="form-input" id="dl-port" value="5016">
-                    <span class="form-hint">Port to accept connections from other peers</span>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Direct Peer IP:Port (Optional)</label>
-                    <input type="text" class="form-input" id="dl-direct-peer" placeholder="e.g. 127.0.0.1:6881">
-                    <span class="form-hint">Bypass tracker to connect directly to a known seeder/client</span>
-                </div>
+                <!-- Advanced Options Collapsible (User NEVER needs to enter a port!) -->
+                <details class="advanced-panel">
+                    <summary>Advanced Options (Direct Peer / Custom Port)</summary>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.75rem;">
+                        <div class="form-group">
+                            <label class="form-label">Direct Peer IP:Port (Optional)</label>
+                            <input type="text" class="form-input" id="dl-direct-peer" placeholder="e.g. 127.0.0.1:6881">
+                            <span class="form-hint">Bypass tracker to connect directly to a seeder</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Custom TCP Listening Port (Optional)</label>
+                            <input type="number" class="form-input" id="dl-port" placeholder="Auto-assigned (e.g. 5016, 5017...)">
+                            <span class="form-hint">Leave empty for automatic port allocation</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Manual Torrent File Name</label>
+                            <input type="text" class="form-input" id="dl-input-torrent" placeholder="e.g. sample.torrent">
+                        </div>
+                    </div>
+                </details>
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeModal('modal-download')">Cancel</button>
@@ -851,23 +1095,48 @@
                 <button class="modal-close" onclick="closeModal('modal-seed')">✕</button>
             </div>
             <div class="modal-body">
+                <!-- Direct File Upload from Mobile / Laptop -->
                 <div class="form-group">
-                    <label class="form-label">Choose Sample File</label>
+                    <label class="form-label">Select File From Device (Laptop / Mobile)</label>
+                    <div class="upload-dropzone" onclick="document.getElementById('seed-device-file').click()">
+                        <input type="file" id="seed-device-file" style="display:none;" onchange="handleSeedFileUpload(this)">
+                        <div class="upload-icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                        </div>
+                        <div class="upload-title" id="seed-upload-title">Choose File to Seed</div>
+                        <div class="upload-subtitle" id="seed-upload-sub">Tap on phone (Photos/Docs/Files) or click on laptop</div>
+                        <div id="seed-upload-status" class="upload-status" style="display:none;"></div>
+                    </div>
+                </div>
+
+                <div class="divider-text">OR CHOOSE AN EXISTING SERVER FILE</div>
+
+                <div class="form-group">
+                    <label class="form-label">Choose Sample / Uploaded File</label>
                     <select class="form-select" id="seed-select-file" onchange="onSelectSeedFile(this.value)">
-                        <option value="">-- Choose a local file --</option>
+                        <option value="">-- Choose a file --</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Full File Path</label>
-                    <input type="text" class="form-input" id="seed-input-path" placeholder="e.g. sample.txt">
-                    <span class="form-hint">Path to the complete file you want to seed</span>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Seeder TCP Port</label>
-                    <input type="number" class="form-input" id="seed-port" value="5017">
-                </div>
+                <!-- Advanced Options Collapsible (User NEVER needs to enter a port!) -->
+                <details class="advanced-panel">
+                    <summary>Advanced Options (Custom Path / Custom Port)</summary>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.75rem;">
+                        <div class="form-group">
+                            <label class="form-label">Custom Full File Path</label>
+                            <input type="text" class="form-input" id="seed-input-path" placeholder="e.g. data/uploads/file.xlsx">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Custom Seeder TCP Port (Optional)</label>
+                            <input type="number" class="form-input" id="seed-port" placeholder="Auto-assigned (e.g. 5017, 5018...)">
+                            <span class="form-hint">Leave empty for automatic port allocation</span>
+                        </div>
+                    </div>
+                </details>
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeModal('modal-seed')">Cancel</button>
@@ -885,14 +1154,32 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label class="form-label">Source File to Package</label>
-                    <input type="text" class="form-input" id="create-input-path" placeholder="e.g. sample.txt">
+                    <label class="form-label">Select File From Device (Laptop / Mobile)</label>
+                    <div class="upload-dropzone" onclick="document.getElementById('create-device-file').click()">
+                        <input type="file" id="create-device-file" style="display:none;" onchange="handleCreateFileUpload(this)">
+                        <div class="upload-icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                            </svg>
+                        </div>
+                        <div class="upload-title">Select Source File</div>
+                        <div class="upload-subtitle">Package any file into a standard .torrent</div>
+                        <div id="create-upload-status" class="upload-status" style="display:none;"></div>
+                    </div>
+                </div>
+
+                <div class="divider-text">OR ENTER FILE PATH MANUALLY</div>
+
+                <div class="form-group">
+                    <label class="form-label">Source File Path</label>
+                    <input type="text" class="form-input" id="create-input-path" placeholder="e.g. data/uploads/sample.txt">
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Tracker Announce URL</label>
-                    <input type="text" class="form-input" id="create-announce-url" value="http://localhost:4000/announce">
-                    <span class="form-hint">Standard BEP 3 announce endpoint</span>
+                    <input type="text" class="form-input" id="create-announce-url" value="/announce">
+                    <span class="form-hint">Standard BEP 3 announce endpoint (Relative works anywhere)</span>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1087,7 +1374,19 @@
                             </span>
                             ${t.infoHash ? `<span class="torrent-hash" title="Click to copy SHA-1 Hash" onclick="navigator.clipboard.writeText('${t.infoHash}'); showToast('Info-hash copied!');">${t.infoHash.substring(0, 10)}...${t.infoHash.substring(34)}</span>` : ""}
                         </div>
-                        <div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            ${t.torrentFileName ? `
+                                <a href="${API_BASE}/api/torrents/download-file/${encodeURIComponent(t.torrentFileName)}" download class="action-link-btn" title="Download .torrent file to phone or laptop">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                    .torrent
+                                </a>
+                            ` : ''}
+                            ${(progress >= 100 || statusClass === 'seeding' || statusClass === 'completed') ? `
+                                <a href="${API_BASE}/api/downloads/file/${encodeURIComponent(t.name || (t.torrentFileName ? t.torrentFileName.replace('.torrent','') : 'download'))}" download class="action-link-btn" style="color: var(--accent-green); border-color: rgba(16, 185, 129, 0.4);" title="Save downloaded file to device">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                    Save File
+                                </a>
+                            ` : ''}
                             ${t.status !== 'stopped' ? `
                                 <button class="btn-danger" onclick="stopTorrent('${t.peerId || ''}', '${t.infoHash || ''}')">
                                     Stop
@@ -1117,7 +1416,7 @@
                             </div>
                             <div class="meta-item">
                                 <span>Port:</span>
-                                <strong>${t.peerPort || 'N/A'}</strong>
+                                <strong>${t.peerPort || 'Auto'}</strong>
                             </div>
                             <div class="meta-item">
                                 <span>Swarm Peers:</span>
@@ -1147,10 +1446,102 @@
                     </div>
                     <div class="empty-title">No Active Transfers</div>
                     <div class="empty-desc">
-                        ${customMsg || "You are not currently downloading or seeding any torrents. Click 'Download Torrent' or 'Start Seeding' above to begin transferring files over BitTorrent!"}
+                        ${customMsg || "You are not currently downloading or seeding any torrents. Click 'Download Torrent' or 'Start Seeding' above to select and transfer files over BitTorrent!"}
                     </div>
                 </div>
             `;
+        }
+
+        // Direct File Upload from Laptop / Mobile
+        async function handleTorrentFileUpload(input) {
+            if (!input.files || input.files.length === 0) return;
+            const file = input.files[0];
+            const statusEl = document.getElementById("dl-upload-status");
+            statusEl.style.display = "block";
+            statusEl.className = "upload-status loading";
+            statusEl.textContent = `Uploading "${file.name}"...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/torrents/upload?name=${encodeURIComponent(file.name)}&type=torrent`, {
+                    method: "POST",
+                    body: file
+                });
+                const data = await res.json();
+                if (data.success) {
+                    statusEl.className = "upload-status success";
+                    statusEl.textContent = `✓ "${data.fileName}" uploaded & ready to download!`;
+                    document.getElementById("dl-input-torrent").value = data.fileName;
+                    await loadAvailableFiles();
+                    const dlSelect = document.getElementById("dl-select-torrent");
+                    dlSelect.value = data.fileName;
+                    showToast(`Uploaded ${data.fileName}`);
+                } else {
+                    throw new Error(data.message || "Upload failed");
+                }
+            } catch (err) {
+                statusEl.className = "upload-status error";
+                statusEl.textContent = `Upload error: ${err.message}`;
+                showToast(err.message, "error");
+            }
+        }
+
+        async function handleSeedFileUpload(input) {
+            if (!input.files || input.files.length === 0) return;
+            const file = input.files[0];
+            const statusEl = document.getElementById("seed-upload-status");
+            statusEl.style.display = "block";
+            statusEl.className = "upload-status loading";
+            statusEl.textContent = `Uploading "${file.name}" (${formatBytes(file.size)})...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/torrents/upload?name=${encodeURIComponent(file.name)}`, {
+                    method: "POST",
+                    body: file
+                });
+                const data = await res.json();
+                if (data.success) {
+                    statusEl.className = "upload-status success";
+                    statusEl.textContent = `✓ "${data.fileName}" uploaded & ready to seed!`;
+                    document.getElementById("seed-input-path").value = data.filePath;
+                    await loadAvailableFiles();
+                    showToast(`Uploaded ${data.fileName}`);
+                } else {
+                    throw new Error(data.message || "Upload failed");
+                }
+            } catch (err) {
+                statusEl.className = "upload-status error";
+                statusEl.textContent = `Upload error: ${err.message}`;
+                showToast(err.message, "error");
+            }
+        }
+
+        async function handleCreateFileUpload(input) {
+            if (!input.files || input.files.length === 0) return;
+            const file = input.files[0];
+            const statusEl = document.getElementById("create-upload-status");
+            statusEl.style.display = "block";
+            statusEl.className = "upload-status loading";
+            statusEl.textContent = `Uploading "${file.name}"...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/torrents/upload?name=${encodeURIComponent(file.name)}`, {
+                    method: "POST",
+                    body: file
+                });
+                const data = await res.json();
+                if (data.success) {
+                    statusEl.className = "upload-status success";
+                    statusEl.textContent = `✓ "${data.fileName}" uploaded!`;
+                    document.getElementById("create-input-path").value = data.filePath;
+                    showToast(`Uploaded ${data.fileName}`);
+                } else {
+                    throw new Error(data.message || "Upload failed");
+                }
+            } catch (err) {
+                statusEl.className = "upload-status error";
+                statusEl.textContent = `Upload error: ${err.message}`;
+                showToast(err.message, "error");
+            }
         }
 
         // Actions
@@ -1158,15 +1549,19 @@
             const selectVal = document.getElementById("dl-select-torrent").value;
             const inputVal = document.getElementById("dl-input-torrent").value.trim();
             const torrentFileName = inputVal || selectVal;
-            const peerPort = parseInt(document.getElementById("dl-port").value, 10);
+            const portRaw = document.getElementById("dl-port").value.trim();
             const directPeerRaw = document.getElementById("dl-direct-peer").value.trim();
 
             if (!torrentFileName) {
-                showToast("Please choose or enter a .torrent file name", "error");
+                showToast("Please select or upload a .torrent file", "error");
                 return;
             }
 
-            const body = { torrentFileName, peerPort };
+            const body = { torrentFileName };
+            // Port is 100% OPTIONAL - backend auto-assigns if omitted!
+            if (portRaw) {
+                body.peerPort = parseInt(portRaw, 10);
+            }
 
             if (directPeerRaw) {
                 const parts = directPeerRaw.split(":");
@@ -1199,23 +1594,29 @@
             const selectVal = document.getElementById("seed-select-file").value;
             const inputVal = document.getElementById("seed-input-path").value.trim();
             let filePath = (inputVal || selectVal).replace(/^["']|["']$/g, '').trim();
-            const peerPort = parseInt(document.getElementById("seed-port").value, 10);
+            const portRaw = document.getElementById("seed-port").value.trim();
 
             if (!filePath) {
-                showToast("Please enter or select a file path to seed", "error");
+                showToast("Please select or upload a file to seed", "error");
                 return;
+            }
+
+            const body = { filePath };
+            // Port is 100% OPTIONAL - backend auto-assigns if omitted!
+            if (portRaw) {
+                body.peerPort = parseInt(portRaw, 10);
             }
 
             try {
                 const res = await fetch(`${API_BASE}/api/torrents/seed`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ filePath, peerPort })
+                    body: JSON.stringify(body)
                 });
                 const data = await res.json();
 
                 if (data.success) {
-                    showToast(`Now seeding ${data.seeder?.name || filePath} on port ${peerPort}`);
+                    showToast(`Now seeding ${data.seeder?.name || filePath}`);
                     closeModal("modal-seed");
                     fetchTorrents();
                 } else {
@@ -1230,7 +1631,7 @@
             let filePath = document.getElementById("create-input-path").value.trim().replace(/^["']|["']$/g, '').trim();
 
             if (!filePath) {
-                showToast("Please enter a file path to package into a torrent", "error");
+                showToast("Please choose a file to package into a torrent", "error");
                 return;
             }
 
@@ -1243,7 +1644,7 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    showToast(`Created .torrent for ${data.torrent.name}! Output: ${data.torrent.outputPath}`);
+                    showToast(`Created .torrent for ${data.torrent.name}!`);
                     closeModal("modal-create");
                     loadAvailableFiles();
                 } else {

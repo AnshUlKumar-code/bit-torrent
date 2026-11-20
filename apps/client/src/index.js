@@ -10,6 +10,7 @@ const startSeeding = require("./upload/SeederManager");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
+const net = require("net");
 
 const app = express();
 
@@ -17,6 +18,56 @@ app.use(express.json());
 
 const activePeerServers = new Map();
 const activeTorrents = new Map();
+
+// Helper: auto-allocate free TCP port without requiring manual port input
+async function findAvailablePort(preferredPort = 0) {
+    const isPortBusyInMemory = (port) => {
+        for (const t of activeTorrents.values()) {
+            if (t.peerPort === port && (t.status === "downloading" || t.status === "seeding")) {
+                return true;
+            }
+        }
+        for (const s of activePeerServers.values()) {
+            if (s.port === port) return true;
+        }
+        return false;
+    };
+
+    const isTcpAvailable = (port) => {
+        return new Promise((resolve) => {
+            const server = net.createServer();
+            server.once("error", () => resolve(false));
+            server.once("listening", () => {
+                server.close(() => resolve(true));
+            });
+            server.listen(port, "0.0.0.0");
+        });
+    };
+
+    const parsed = parseInt(preferredPort, 10);
+    if (!isNaN(parsed) && parsed >= 1024 && parsed <= 65535) {
+        if (!isPortBusyInMemory(parsed) && (await isTcpAvailable(parsed))) {
+            return parsed;
+        }
+    }
+
+    // Auto-search free port from 5016 up to 5999
+    for (let p = 5016; p <= 5999; p++) {
+        if (!isPortBusyInMemory(p) && (await isTcpAvailable(p))) {
+            return p;
+        }
+    }
+
+    // Ephemeral fallback
+    return new Promise((resolve, reject) => {
+        const s = net.createServer();
+        s.listen(0, () => {
+            const p = s.address().port;
+            s.close(() => resolve(p));
+        });
+        s.on("error", reject);
+    });
+}
 
 const torrentDirectory = path.resolve(
     process.cwd(),
@@ -168,7 +219,7 @@ app.get("/api/health", (req, res) => {
     });
 });
 
-// Get available files (torrents in data/torrents and sample files in root)
+// Get available files (torrents in data/torrents and sample files in root + data/uploads)
 app.get("/api/torrents/available-files", (req, res) => {
     try {
         const torrents = fs.existsSync(torrentDirectory)
@@ -185,10 +236,21 @@ app.get("/api/torrents/available-files", (req, res) => {
             }
         });
 
+        const uploadsDir = path.resolve(process.cwd(), "data/uploads");
+        const uploadFiles = fs.existsSync(uploadsDir)
+            ? fs.readdirSync(uploadsDir).filter(f => {
+                try {
+                    return fs.statSync(path.join(uploadsDir, f)).isFile();
+                } catch {
+                    return false;
+                }
+            }).map(f => path.join("data/uploads", f).replace(/\\/g, "/"))
+            : [];
+
         res.status(200).json({
             success: true,
             torrents,
-            sampleFiles: rootFiles,
+            sampleFiles: [...uploadFiles, ...rootFiles],
             torrentDirectory,
             downloadDirectory
         });
@@ -197,6 +259,72 @@ app.get("/api/torrents/available-files", (req, res) => {
             success: false,
             message: error.message
         });
+    }
+});
+
+// Direct file upload from mobile / browser (no path typing required)
+app.post("/api/torrents/upload", (req, res) => {
+    try {
+        const rawName = req.query.name || `upload_${Date.now()}`;
+        const cleanName = path.basename(decodeURIComponent(rawName));
+        const isTorrent = req.query.type === "torrent" || cleanName.toLowerCase().endsWith(".torrent");
+
+        const targetDir = isTorrent ? torrentDirectory : path.resolve(process.cwd(), "data/uploads");
+        fs.mkdirSync(targetDir, { recursive: true });
+
+        const targetPath = path.join(targetDir, cleanName);
+        const writeStream = fs.createWriteStream(targetPath);
+
+        req.pipe(writeStream);
+
+        writeStream.on("finish", () => {
+            const size = fs.existsSync(targetPath) ? fs.statSync(targetPath).size : 0;
+            res.status(200).json({
+                success: true,
+                message: "File uploaded successfully from device",
+                fileName: cleanName,
+                filePath: targetPath,
+                isTorrent,
+                size
+            });
+        });
+
+        writeStream.on("error", (err) => {
+            res.status(500).json({ success: false, message: err.message });
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Download .torrent file to laptop or mobile
+app.get("/api/torrents/download-file/:fileName", (req, res) => {
+    try {
+        const cleanName = path.basename(req.params.fileName);
+        const filePath = path.join(torrentDirectory, cleanName);
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ success: false, message: "Torrent file not found" });
+        }
+        res.download(filePath, cleanName);
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// Download finished transferred file directly to laptop or mobile
+app.get("/api/downloads/file/:fileName", (req, res) => {
+    try {
+        const cleanName = path.basename(req.params.fileName);
+        let filePath = path.join(downloadDirectory, cleanName);
+        if (!fs.existsSync(filePath)) {
+            filePath = path.join(process.cwd(), "data/uploads", cleanName);
+        }
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ success: false, message: "File not found on server" });
+        }
+        res.download(filePath, cleanName);
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 
@@ -262,18 +390,8 @@ app.post("/api/torrents/seed", async (req, res) => {
             });
         }
 
-        const selectedPeerPort = peerPort ?? 5017;
-
-        if (
-            !Number.isInteger(selectedPeerPort) ||
-            selectedPeerPort < 1024 ||
-            selectedPeerPort > 65535
-        ) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid peer port"
-            });
-        }
+        // Auto-assign available TCP port without requiring manual input
+        const selectedPeerPort = await findAvailablePort(peerPort);
 
         const selectedPeerId =
             peerId || "-UT0001-" + crypto.randomBytes(6).toString("hex");
@@ -409,18 +527,8 @@ app.post("/api/torrents/download", async (req, res) => {
         const torrentBuffer = fs.readFileSync(torrentPath);
         const parsedTorrent = parseTorrent(torrentBuffer);
 
-        const selectedPeerPort = peerPort ?? 5016;
-
-        if (
-            !Number.isInteger(selectedPeerPort) ||
-            selectedPeerPort < 1024 ||
-            selectedPeerPort > 65535
-        ) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid peer port"
-            });
-        }
+        // Auto-assign available TCP port without requiring manual input
+        const selectedPeerPort = await findAvailablePort(peerPort);
 
         const selectedPeerId =
             peerId || "-UT0001-" + crypto.randomBytes(6).toString("hex");
@@ -439,16 +547,6 @@ app.post("/api/torrents/download", async (req, res) => {
             return res.status(409).json({
                 success: false,
                 message: "This peer is already active"
-            });
-        }
-
-        const isPortBusy = Array.from(activeTorrents.values()).some(
-            t => t.peerPort === selectedPeerPort && (t.status === "downloading" || t.status === "seeding")
-        );
-        if (isPortBusy) {
-            return res.status(409).json({
-                success: false,
-                message: `Port ${selectedPeerPort} is already in use by another active peer. Please choose a different port (e.g. 5018).`
             });
         }
 
