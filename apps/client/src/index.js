@@ -69,15 +69,17 @@ async function findAvailablePort(preferredPort = 0) {
     });
 }
 
-const torrentDirectory = path.resolve(
-    process.cwd(),
-    config.torrentDir
-);
+const projectRoot = path.resolve(__dirname, "../../../");
 
-const downloadDirectory = path.resolve(
-    process.cwd(),
-    config.downloadDir
-);
+const torrentDirectory = path.isAbsolute(config.torrentDir)
+    ? config.torrentDir
+    : path.resolve(projectRoot, config.torrentDir);
+
+const downloadDirectory = path.isAbsolute(config.downloadDir)
+    ? config.downloadDir
+    : path.resolve(projectRoot, config.downloadDir);
+
+const uploadsDirectory = path.join(projectRoot, "data/uploads");
 
 const webPublicDirectory = path.resolve(__dirname, "../../web/public");
 if (fs.existsSync(webPublicDirectory)) {
@@ -269,7 +271,7 @@ app.post("/api/torrents/upload", (req, res) => {
         const cleanName = path.basename(decodeURIComponent(rawName));
         const isTorrent = req.query.type === "torrent" || cleanName.toLowerCase().endsWith(".torrent");
 
-        const targetDir = isTorrent ? torrentDirectory : path.resolve(process.cwd(), "data/uploads");
+        const targetDir = isTorrent ? torrentDirectory : uploadsDirectory;
         fs.mkdirSync(targetDir, { recursive: true });
 
         const targetPath = path.join(targetDir, cleanName);
