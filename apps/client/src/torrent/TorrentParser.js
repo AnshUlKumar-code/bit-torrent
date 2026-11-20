@@ -90,10 +90,30 @@ function parseTorrent(buffer) {
     const infoBuffer = extractInfoBuffer(buffer);
     const infoHash = calculateInfoHash(infoBuffer);
 
+    const announce = torrent.announce
+        ? torrent.announce.toString("utf8")
+        : null;
+
+    const announceList = [];
+    if (Array.isArray(torrent["announce-list"])) {
+        for (const tier of torrent["announce-list"]) {
+            if (Array.isArray(tier)) {
+                for (const url of tier) {
+                    if (url) announceList.push(url.toString("utf8"));
+                }
+            } else if (tier) {
+                announceList.push(tier.toString("utf8"));
+            }
+        }
+    }
+
+    if (announce && !announceList.includes(announce)) {
+        announceList.unshift(announce);
+    }
+
     return {
-        announce: torrent.announce
-            ? torrent.announce.toString()
-            : null,
+        announce,
+        announceList,
 
         name: info.name.toString(),
 

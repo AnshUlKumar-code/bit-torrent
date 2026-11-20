@@ -17,7 +17,7 @@ function downloadFromPeer({
 }) {
     return new Promise((resolve, reject) => {
         let socket;
-        let availablePieces = null;
+        const availablePieces = new Set();
         let unchoked = false;
         let requested = false;
         let completed = false;
@@ -38,12 +38,12 @@ function downloadFromPeer({
             if (
                 requested ||
                 !socket ||
-                !unchoked ||
-                !availablePieces
+                !unchoked
             ) return;
 
-            if (!availablePieces.includes(pieceIndex)) {
-                fail(new Error("Peer does not have this piece"));
+            // If peer announced pieces and does not have this one:
+            if (availablePieces.size > 0 && !availablePieces.has(pieceIndex)) {
+                fail(new Error("Peer does not have piece " + pieceIndex));
                 return;
             }
 
@@ -75,7 +75,17 @@ function downloadFromPeer({
 
                         callbacks: {
                             onBitfield: (pieces) => {
-                                availablePieces = pieces;
+                                pieces.forEach(p => availablePieces.add(p));
+                                requestBlocks();
+                            },
+
+                            onHave: (index) => {
+                                availablePieces.add(index);
+                                requestBlocks();
+                            },
+
+                            onHaveAll: (allPieces) => {
+                                allPieces.forEach(p => availablePieces.add(p));
                                 requestBlocks();
                             },
 

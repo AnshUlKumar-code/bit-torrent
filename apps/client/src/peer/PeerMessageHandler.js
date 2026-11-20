@@ -33,12 +33,13 @@ function attachPeerMessageHandler(
                 switch (message.type) {
                     case "BITFIELD": {
                         const bitfield = message.payload;
+                        const minBytes = Math.ceil(pieceCount / 8);
 
-                        if (bitfield.length !== Math.ceil(pieceCount / 8)) {
+                        if (bitfield.length < minBytes) {
                             throw new Error("Invalid bitfield length");
                         }
 
-                        console.log("Received BITFIELD:", bitfield.toString("hex"));
+                        console.log("Received BITFIELD:", bitfield.subarray(0, minBytes).toString("hex"));
 
                         const availablePieces = [];
 
@@ -48,7 +49,7 @@ function attachPeerMessageHandler(
                             }
                         }
 
-                        console.log("Available pieces:", availablePieces);
+                        console.log("Available pieces from bitfield:", availablePieces.length);
 
                         callbacks.onBitfield?.(availablePieces, bitfield);
                         break;
@@ -58,13 +59,26 @@ function attachPeerMessageHandler(
                         const pieceIndex = parseHaveMessage(message.payload);
 
                         if (pieceIndex >= pieceCount) {
-                            throw new Error("Invalid piece index");
+                            console.log("Ignored HAVE for out-of-range piece:", pieceIndex);
+                            break;
                         }
 
                         console.log("Peer has piece:", pieceIndex);
                         callbacks.onHave?.(pieceIndex);
                         break;
                     }
+
+                    case "HAVE_ALL": {
+                        console.log("Peer has ALL pieces (HAVE_ALL)");
+                        const allPieces = Array.from({ length: pieceCount }, (_, i) => i);
+                        callbacks.onHaveAll?.(allPieces);
+                        break;
+                    }
+
+                    case "HAVE_NONE":
+                        console.log("Peer has NO pieces (HAVE_NONE)");
+                        callbacks.onHaveNone?.();
+                        break;
 
                     case "UNCHOKE":
                         console.log("Peer unchoked us");
@@ -91,6 +105,13 @@ function attachPeerMessageHandler(
                     }
 
                     case "KEEP_ALIVE":
+                        break;
+
+                    case "PORT":
+                    case "EXTENDED":
+                    case "UNKNOWN":
+                        console.log(`Received wire message: ${message.type} (id: ${message.rawType})`);
+                        callbacks.onMessage?.(message);
                         break;
 
                     default:

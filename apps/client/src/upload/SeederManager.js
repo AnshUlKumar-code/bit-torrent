@@ -80,11 +80,26 @@ async function startSeeding({
             server.once("error", reject);
         });
 
-        // Register the seeder immediately.
+        // Collect candidate tracker URLs
+        const candidateTrackers = [];
+        if (torrent.announceList && torrent.announceList.length > 0) {
+            candidateTrackers.push(...torrent.announceList);
+        } else if (torrent.announce) {
+            candidateTrackers.push(torrent.announce);
+        }
+
+        const trackerUrl = candidateTrackers[0] || require("../config").trackerUrl;
+
+        // Register the seeder immediately (left = 0, event = completed)
         await announce(
             torrent.infoHash,
             peerId,
-            peerPort
+            peerPort,
+            {
+                trackerUrl,
+                left: 0,
+                event: "completed"
+            }
         );
 
         console.log("File is now being shared:", torrent.name);
@@ -95,7 +110,11 @@ async function startSeeding({
                 await announce(
                     torrent.infoHash,
                     peerId,
-                    peerPort
+                    peerPort,
+                    {
+                        trackerUrl,
+                        left: 0
+                    }
                 );
 
                 console.log("Seeder heartbeat sent:", peerId);

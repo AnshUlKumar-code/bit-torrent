@@ -19,7 +19,8 @@ async function downloadFile({
     peer,
     torrent,
     downloadDir,
-    peerId
+    peerId,
+    onProgress
 }) {
     // Support either a peer list or one individual peer.
     const availablePeers = Array.isArray(peers)
@@ -75,6 +76,30 @@ async function downloadFile({
     let skippedPieces = 0;
     let downloadedPieces = 0;
     let nextPieceIndex = 0;
+    let bytesDownloadedSinceStart = 0;
+    const startTime = Date.now();
+
+    function reportProgress() {
+        if (typeof onProgress === "function") {
+            const completedPieces = downloadedPieces + skippedPieces;
+            const progress = pieceCount > 0 ? (completedPieces / pieceCount) * 100 : 0;
+            const elapsedSeconds = Math.max((Date.now() - startTime) / 1000, 0.001);
+            const speed = Math.round(bytesDownloadedSinceStart / elapsedSeconds);
+
+            onProgress({
+                downloadedPieces,
+                skippedPieces,
+                totalPieces: pieceCount,
+                completedPieces,
+                progress: parseFloat(progress.toFixed(2)),
+                speed,
+                bytesDownloaded: bytesDownloadedSinceStart,
+                peersCount: availablePeers.length
+            });
+        }
+    }
+
+    reportProgress();
 
     const failedPieces = [];
 
@@ -94,6 +119,7 @@ async function downloadFile({
             ) {
                 console.log(`Skipping piece ${i}: already verified`);
                 skippedPieces++;
+                reportProgress();
                 return;
             }
         } catch (error) {
@@ -146,6 +172,8 @@ async function downloadFile({
 
                 downloadedSuccessfully = true;
                 downloadedPieces++;
+                bytesDownloadedSinceStart += actualPieceLength;
+                reportProgress();
 
                 console.log(
                     `Piece ${i} completed from ${selectedPeer.ip}:${selectedPeer.port}`
@@ -221,6 +249,8 @@ async function downloadFile({
     console.log("File assembled successfully:", outputPath);
     console.log("Newly downloaded pieces:", downloadedPieces);
     console.log("Skipped verified pieces:", skippedPieces);
+
+    reportProgress();
 
     return {
         success: true,

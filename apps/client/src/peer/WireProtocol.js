@@ -7,7 +7,14 @@ const MESSAGE_TYPES = {
     BITFIELD: 5,
     REQUEST: 6,
     PIECE: 7,
-    CANCEL: 8
+    CANCEL: 8,
+    PORT: 9,
+    SUGGEST_PIECE: 13,
+    HAVE_ALL: 14,
+    HAVE_NONE: 15,
+    REJECT_REQUEST: 16,
+    ALLOWED_FAST: 17,
+    EXTENDED: 20
 };
 
 function createMessage(type, payload = Buffer.alloc(0)) {
@@ -41,12 +48,9 @@ function parseMessage(buffer) {
     const messageType = Object.keys(MESSAGE_TYPES)
         .find(key => MESSAGE_TYPES[key] === type);
 
-    if (!messageType) {
-        throw new Error("Unknown message type");
-    }
-
     return {
-        type: messageType,
+        type: messageType || "UNKNOWN",
+        rawType: type,
         payload: buffer.subarray(5, 4 + length)
     };
 }

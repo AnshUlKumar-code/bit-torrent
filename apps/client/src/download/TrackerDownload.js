@@ -19,7 +19,9 @@ async function downloadFromTracker({
     torrent,
     peerId,
     peerPort,
-    downloadDir
+    downloadDir,
+    peers: initialPeers = [],
+    onProgress
 }) {
     let server;
     let heartbeat;
@@ -44,24 +46,68 @@ async function downloadFromTracker({
 
         console.log("Peer server started on port:", peerPort);
 
-        // Register downloader with tracker.
-        const trackerResponse = await announce(
-            torrent.infoHash,
-            peerId,
-            peerPort
-        );
-
-        if (!trackerResponse.success) {
-            throw new Error("Tracker registration failed");
+        // Collect candidate tracker URLs: torrent metadata first, then fallback to config
+        const candidateTrackers = [];
+        if (torrent.announceList && torrent.announceList.length > 0) {
+            candidateTrackers.push(...torrent.announceList);
+        } else if (torrent.announce) {
+            candidateTrackers.push(torrent.announce);
+        }
+        if (!candidateTrackers.includes(config.trackerUrl)) {
+            candidateTrackers.push(config.trackerUrl);
         }
 
-        // Refresh registration every 45 seconds.
+        let trackerResponse = null;
+        let activeTrackerUrl = config.trackerUrl;
+
+        for (const candidate of candidateTrackers) {
+            if (!candidate.startsWith("http://") && !candidate.startsWith("https://")) {
+                continue;
+            }
+
+            try {
+                console.log("Contacting tracker:", candidate);
+                const resp = await announce(
+                    torrent.infoHash,
+                    peerId,
+                    peerPort,
+                    {
+                        trackerUrl: candidate,
+                        left: torrent.length,
+                        event: "started"
+                    }
+                );
+
+                if (resp && resp.success !== false) {
+                    trackerResponse = resp;
+                    activeTrackerUrl = candidate;
+                    console.log(`Discovered ${resp.peers ? resp.peers.length : 0} peers from ${candidate}`);
+                    if (resp.peers && resp.peers.length > 0) {
+                        break;
+                    }
+                }
+            } catch (err) {
+                console.log(`Announce to ${candidate} failed:`, err.message);
+            }
+        }
+
+        if (!trackerResponse) {
+            throw new Error("Failed to contact any tracker from torrent announce list");
+        }
+
+        const heartbeatInterval = Math.min(trackerResponse.interval || 45, 60);
+
+        // Refresh registration periodically
         heartbeat = setInterval(async () => {
             try {
                 await announce(
                     torrent.infoHash,
                     peerId,
-                    peerPort
+                    peerPort,
+                    {
+                        trackerUrl: activeTrackerUrl,
+                        left: torrent.length
+                    }
                 );
 
                 console.log("Downloader heartbeat sent:", peerId);
@@ -71,19 +117,20 @@ async function downloadFromTracker({
                     error.message
                 );
             }
-        }, 45 * 1000);
+        }, heartbeatInterval * 1000);
 
         server.once("close", () => {
             clearInterval(heartbeat);
             console.log("Downloader heartbeat stopped:", peerId);
         });
 
-        const peers = trackerResponse.peers || [];
+        const discoveredPeers = trackerResponse.peers || [];
+        const combinedPeers = [...initialPeers, ...discoveredPeers];
 
-        console.log("Peers discovered:", peers.length);
+        console.log("Total peers available (initial + discovered):", combinedPeers.length);
 
         // Keep only usable peers.
-        const usablePeers = peers.filter(
+        const usablePeers = combinedPeers.filter(
             peer =>
                 peer.ip &&
                 Number.isInteger(peer.port) &&
@@ -93,7 +140,7 @@ async function downloadFromTracker({
 
         if (usablePeers.length === 0) {
             throw new Error(
-                "No usable peers found. Ask another peer to seed this torrent."
+                "No usable peers found. Ask another peer to seed this torrent or supply direct peers."
             );
         }
 
@@ -104,7 +151,8 @@ async function downloadFromTracker({
             peers: usablePeers,
             torrent,
             downloadDir,
-            peerId
+            peerId,
+            onProgress
         });
 
         console.log("Download completed successfully.");

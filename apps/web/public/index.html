@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>µTorrent - Modern Web Client</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #070a12;
+            --bg-surface: #0e1424;
+            --bg-surface-elevated: #162035;
+            --bg-surface-hover: #1e2c49;
+            --border: #23314f;
+            --border-subtle: #172338;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-green: #10b981;
+            --accent-green-glow: rgba(16, 185, 129, 0.25);
+            --accent-cyan: #06b6d4;
+            --accent-cyan-glow: rgba(6, 182, 212, 0.25);
+            --accent-rose: #f43f5e;
+            --accent-amber: #f59e0b;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 20px -3px rgba(16, 185, 129, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Top Navigation Bar */
+        header {
+            background: rgba(14, 20, 36, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-subtle);
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            padding: 0.875rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+        }
+
+        .brand-icon {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, #059669, #10b981);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 18px var(--accent-green-glow);
+            color: #fff;
+        }
+
+        .brand-icon svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .brand-title {
+            font-weight: 800;
+            font-size: 1.25rem;
+            letter-spacing: -0.025em;
+            background: linear-gradient(120deg, #fff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-subtitle {
+            font-size: 0.72rem;
+            color: var(--accent-green);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .status-indicators {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border);
+            padding: 0.35rem 0.85rem;
+            border-radius: 9999px;
+            font-size: 0.775rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .status-dot.online {
+            background-color: var(--accent-green);
+            box-shadow: 0 0 10px var(--accent-green);
+        }
+
+        .status-dot.offline {
+            background-color: var(--accent-rose);
+            box-shadow: 0 0 10px var(--accent-rose);
+        }
+
+        /* Main Container */
+        main {
+            flex: 1;
+            max-width: 1300px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Stats Banner */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .stat-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: var(--shadow-card);
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .stat-card:hover {
+            border-color: var(--border);
+            transform: translateY(-2px);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-surface-elevated);
+            color: var(--accent-green);
+        }
+
+        .stat-icon.cyan { color: var(--accent-cyan); background: rgba(6, 182, 212, 0.1); }
+        .stat-icon.green { color: var(--accent-green); background: rgba(16, 185, 129, 0.1); }
+        .stat-icon.amber { color: var(--accent-amber); background: rgba(245, 158, 11, 0.1); }
+
+        .stat-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            font-size: 0.775rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        /* Action Toolbar */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 1rem 1.5rem;
+            box-shadow: var(--shadow-card);
+        }
+
+        .action-buttons {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            outline: none;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.65rem 1.25rem;
+            border-radius: var(--radius-md);
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: #fff;
+            box-shadow: 0 4px 14px var(--accent-green-glow);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #047857, #059669);
+            box-shadow: 0 6px 20px var(--accent-green-glow);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-surface-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-surface-hover);
+            border-color: var(--text-secondary);
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: rgba(244, 63, 94, 0.12);
+            color: var(--accent-rose);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            padding: 0.4rem 0.85rem;
+            font-size: 0.775rem;
+        }
+
+        .btn-danger:hover {
+            background: var(--accent-rose);
+            color: #fff;
+        }
+
+        .refresh-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.825rem;
+            color: var(--text-secondary);
+        }
+
+        /* Torrents Section */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .count-badge {
+            background: var(--bg-surface-elevated);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            border: 1px solid var(--border);
+        }
+
+        .torrents-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .torrent-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+            gap: 1.125rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .torrent-card:hover {
+            border-color: var(--border);
+            box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.6);
+        }
+
+        .torrent-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .torrent-name-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .torrent-name {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .torrent-hash {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: var(--bg-base);
+            padding: 0.2rem 0.5rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-subtle);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .torrent-hash:hover {
+            color: var(--accent-cyan);
+            border-color: var(--border);
+        }
+
+        .badge-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.725rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-status.downloading {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .badge-status.seeding {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-status.completed {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-status.stopped {
+            background: rgba(148, 163, 184, 0.12);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .badge-status.failed {
+            background: rgba(244, 63, 94, 0.15);
+            color: var(--accent-rose);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 10px;
+            background: var(--bg-surface-elevated);
+            border-radius: 9999px;
+            overflow: hidden;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #059669, #10b981, #06b6d4);
+            border-radius: 9999px;
+            transition: width 0.4s ease;
+        }
+
+        .progress-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-percent {
+            font-weight: 700;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Torrent Bottom Meta Grid */
+        .torrent-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            padding-top: 0.875rem;
+            border-top: 1px solid var(--border-subtle);
+            font-size: 0.825rem;
+            color: var(--text-secondary);
+        }
+
+        .meta-group {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .meta-item strong {
+            color: var(--text-primary);
+        }
+
+        /* Empty State */
+        .empty-state {
+            background: var(--bg-surface);
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 4rem 2rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.25rem;
+        }
+
+        .empty-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: var(--bg-surface-elevated);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+        }
+
+        .empty-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .empty-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            max-width: 460px;
+        }
+
+        /* Modal Backdrop and Box */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(3, 7, 18, 0.75);
+            backdrop-filter: blur(6px);
+            z-index: 50;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        .modal-backdrop.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 520px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75);
+            overflow: hidden;
+            animation: modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modalIn {
+            from { transform: scale(0.96); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: transparent;
+            color: var(--text-muted);
+            padding: 0.25rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .modal-close:hover {
+            color: #fff;
+            background: var(--bg-surface-elevated);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .form-input, .form-select {
+            background: var(--bg-base);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.75rem 1rem;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.875rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 0 3px var(--accent-green-glow);
+        }
+
+        .form-hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            background: var(--bg-surface-elevated);
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 60;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            pointer-events: none;
+        }
+
+        .toast {
+            pointer-events: auto;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.875rem 1.25rem;
+            color: #fff;
+            font-size: 0.875rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            min-width: 300px;
+            animation: toastIn 0.25s ease;
+        }
+
+        .toast.success { border-left: 4px solid var(--accent-green); }
+        .toast.error { border-left: 4px solid var(--accent-rose); }
+
+        @keyframes toastIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="brand-container">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+            </div>
+            <div>
+                <div class="brand-title">µTorrent Web Client</div>
+                <div class="brand-subtitle">P2P BitTorrent Protocol v1.0</div>
+            </div>
+        </div>
+
+        <div class="status-indicators">
+            <div class="status-pill" id="pill-tracker">
+                <div class="status-dot" id="dot-tracker"></div>
+                <span id="text-tracker">Tracker (:4000)</span>
+            </div>
+            <div class="status-pill" id="pill-client">
+                <div class="status-dot" id="dot-client"></div>
+                <span id="text-client">Client Engine (:3000)</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Real-time Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon green">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Active Transfers</span>
+                    <span class="stat-value" id="val-active-count">0</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon cyan">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Download Speed</span>
+                    <span class="stat-value" id="val-download-speed">0 KB/s</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon amber">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Connected Swarm Peers</span>
+                    <span class="stat-value" id="val-peers-count">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Toolbar -->
+        <div class="toolbar">
+            <div class="action-buttons">
+                <button class="btn-primary" onclick="openModal('modal-download')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    Download Torrent
+                </button>
+
+                <button class="btn-secondary" onclick="openModal('modal-seed')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                    </svg>
+                    Start Seeding File
+                </button>
+
+                <button class="btn-secondary" onclick="openModal('modal-create')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="12" y1="18" x2="12" y2="12"></line>
+                        <line x1="9" y1="15" x2="15" y2="15"></line>
+                    </svg>
+                    Create .torrent
+                </button>
+            </div>
+
+            <div class="refresh-toggle">
+                <span>Auto-refreshing (1s)</span>
+                <button class="btn-secondary" style="padding: 0.35rem 0.65rem;" onclick="fetchTorrents(true)" title="Force Refresh">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Torrents List Section -->
+        <div>
+            <div class="section-header">
+                <div class="section-title">
+                    Torrents & Swarms
+                    <span class="count-badge" id="badge-torrent-count">0</span>
+                </div>
+            </div>
+
+            <div id="torrents-container" class="torrents-list">
+                <!-- Dynamically populated or empty state -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal 1: Download Torrent -->
+    <div class="modal-backdrop" id="modal-download">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Download Torrent</div>
+                <button class="modal-close" onclick="closeModal('modal-download')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Select .torrent File</label>
+                    <select class="form-select" id="dl-select-torrent">
+                        <option value="">-- Choose from data/torrents --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Or Custom Torrent File Name</label>
+                    <input type="text" class="form-input" id="dl-input-torrent" placeholder="e.g. sample.torrent">
+                    <span class="form-hint">File must be located in data/torrents directory</span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Local TCP Listening Port</label>
+                    <input type="number" class="form-input" id="dl-port" value="5016">
+                    <span class="form-hint">Port to accept connections from other peers</span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Direct Peer IP:Port (Optional)</label>
+                    <input type="text" class="form-input" id="dl-direct-peer" placeholder="e.g. 127.0.0.1:6881">
+                    <span class="form-hint">Bypass tracker to connect directly to a known seeder/client</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-download')">Cancel</button>
+                <button class="btn-primary" onclick="submitDownload()">Start Download</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Seed File -->
+    <div class="modal-backdrop" id="modal-seed">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Start Seeding File</div>
+                <button class="modal-close" onclick="closeModal('modal-seed')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Choose Sample File</label>
+                    <select class="form-select" id="seed-select-file" onchange="onSelectSeedFile(this.value)">
+                        <option value="">-- Choose a local file --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Full File Path</label>
+                    <input type="text" class="form-input" id="seed-input-path" placeholder="e.g. sample.txt">
+                    <span class="form-hint">Path to the complete file you want to seed</span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Seeder TCP Port</label>
+                    <input type="number" class="form-input" id="seed-port" value="5017">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-seed')">Cancel</button>
+                <button class="btn-primary" onclick="submitSeed()">Start Seeding</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Create .torrent -->
+    <div class="modal-backdrop" id="modal-create">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Create New .torrent</div>
+                <button class="modal-close" onclick="closeModal('modal-create')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Source File to Package</label>
+                    <input type="text" class="form-input" id="create-input-path" placeholder="e.g. sample.txt">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Tracker Announce URL</label>
+                    <input type="text" class="form-input" id="create-announce-url" value="http://localhost:4000/announce">
+                    <span class="form-hint">Standard BEP 3 announce endpoint</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-create')">Cancel</button>
+                <button class="btn-primary" onclick="submitCreateTorrent()">Generate Torrent</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // API Base URL (Relative works for both port 5173 proxy and port 3000 direct)
+        const API_BASE = "";
+
+        // Format bytes into readable format
+        function formatBytes(bytes) {
+            if (!bytes || bytes === 0) return "0 B";
+            const k = 1024;
+            const sizes = ["B", "KB", "MB", "GB", "TB"];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+        }
+
+        function formatSpeed(bytesPerSec) {
+            if (!bytesPerSec || bytesPerSec === 0) return "0 KB/s";
+            return formatBytes(bytesPerSec) + "/s";
+        }
+
+        function showToast(message, type = "success") {
+            const container = document.getElementById("toast-container");
+            const toast = document.createElement("div");
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span>${type === 'success' ? '✓' : '⚠'}</span>
+                <div>${message}</div>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translateX(100%)";
+                toast.style.transition = "all 0.3s ease";
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.add("active");
+            loadAvailableFiles();
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove("active");
+        }
+
+        // Close on backdrop click
+        document.querySelectorAll(".modal-backdrop").forEach(backdrop => {
+            backdrop.addEventListener("click", (e) => {
+                if (e.target === backdrop) {
+                    backdrop.classList.remove("active");
+                }
+            });
+        });
+
+        function onSelectSeedFile(val) {
+            if (val) document.getElementById("seed-input-path").value = val;
+        }
+
+        // Load available files for dropdowns
+        async function loadAvailableFiles() {
+            try {
+                const res = await fetch(`${API_BASE}/api/torrents/available-files`);
+                const data = await res.json();
+                if (data.success) {
+                    // Populate torrents
+                    const dlSelect = document.getElementById("dl-select-torrent");
+                    dlSelect.innerHTML = `<option value="">-- Choose from data/torrents --</option>`;
+                    data.torrents.forEach(t => {
+                        const opt = document.createElement("option");
+                        opt.value = t;
+                        opt.textContent = t;
+                        dlSelect.appendChild(opt);
+                    });
+
+                    dlSelect.onchange = (e) => {
+                        if (e.target.value) {
+                            document.getElementById("dl-input-torrent").value = e.target.value;
+                        }
+                    };
+
+                    // Populate sample files
+                    const seedSelect = document.getElementById("seed-select-file");
+                    seedSelect.innerHTML = `<option value="">-- Choose a local file --</option>`;
+                    data.sampleFiles.forEach(f => {
+                        const opt = document.createElement("option");
+                        opt.value = f;
+                        opt.textContent = f;
+                        seedSelect.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                console.log("Could not load available files:", err);
+            }
+        }
+
+        // Check health of tracker & client backend
+        async function checkHealth() {
+            // Check Client Backend
+            try {
+                const res = await fetch(`${API_BASE}/api/health`);
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById("dot-client").className = "status-dot online";
+                    document.getElementById("text-client").textContent = "Client Online (:3000)";
+                } else {
+                    throw new Error();
+                }
+            } catch {
+                document.getElementById("dot-client").className = "status-dot offline";
+                document.getElementById("text-client").textContent = "Client Offline";
+            }
+
+            // Check Tracker Server (Port 4000)
+            try {
+                const res = await fetch("http://localhost:4000/api/health", { mode: 'cors' }).catch(() => null);
+                if (res && res.ok) {
+                    document.getElementById("dot-tracker").className = "status-dot online";
+                    document.getElementById("text-tracker").textContent = "Tracker Online (:4000)";
+                } else {
+                    document.getElementById("dot-tracker").className = "status-dot offline";
+                    document.getElementById("text-tracker").textContent = "Tracker Offline (:4000)";
+                }
+            } catch {
+                document.getElementById("dot-tracker").className = "status-dot offline";
+                document.getElementById("text-tracker").textContent = "Tracker Offline (:4000)";
+            }
+        }
+
+        // Fetch Torrents Status & Render Cards
+        async function fetchTorrents(manual = false) {
+            try {
+                const res = await fetch(`${API_BASE}/api/torrents/status`);
+                if (!res.ok) throw new Error("Backend not responding");
+                const data = await res.json();
+
+                renderTorrents(data.torrents || []);
+
+                if (manual) showToast("Swarm status updated");
+            } catch (err) {
+                renderEmptyState("Unable to reach client backend. Make sure 'npm run dev:client' is running.");
+            }
+        }
+
+        function renderTorrents(torrents) {
+            const container = document.getElementById("torrents-container");
+            document.getElementById("badge-torrent-count").textContent = torrents.length;
+            document.getElementById("val-active-count").textContent = torrents.length;
+
+            let totalSpeed = 0;
+            let totalPeers = 0;
+
+            torrents.forEach(t => {
+                totalSpeed += (t.speed || 0);
+                totalPeers += (t.peersCount || 0);
+            });
+
+            document.getElementById("val-download-speed").textContent = formatSpeed(totalSpeed);
+            document.getElementById("val-peers-count").textContent = totalPeers;
+
+            if (torrents.length === 0) {
+                renderEmptyState();
+                return;
+            }
+
+            container.innerHTML = "";
+
+            torrents.forEach(t => {
+                const card = document.createElement("div");
+                card.className = "torrent-card";
+
+                const progress = t.progress !== undefined ? t.progress : 0;
+                const statusClass = (t.status || "unknown").toLowerCase();
+
+                card.innerHTML = `
+                    <div class="torrent-top">
+                        <div class="torrent-name-row">
+                            <span class="torrent-name">${t.name || t.torrentFileName || "Unknown Torrent"}</span>
+                            <span class="badge-status ${statusClass}">
+                                <span class="status-dot ${statusClass === 'seeding' || statusClass === 'completed' || statusClass === 'downloading' ? 'online' : 'offline'}" style="width: 6px; height: 6px;"></span>
+                                ${t.status || "IDLE"}
+                            </span>
+                            ${t.infoHash ? `<span class="torrent-hash" title="Click to copy SHA-1 Hash" onclick="navigator.clipboard.writeText('${t.infoHash}'); showToast('Info-hash copied!');">${t.infoHash.substring(0, 10)}...${t.infoHash.substring(34)}</span>` : ""}
+                        </div>
+                        <div>
+                            ${t.status !== 'stopped' ? `
+                                <button class="btn-danger" onclick="stopTorrent('${t.peerId || ''}', '${t.infoHash || ''}')">
+                                    Stop
+                                </button>
+                            ` : `<span style="font-size: 0.75rem; color: var(--text-muted);">Stopped</span>`}
+                        </div>
+                    </div>
+
+                    <div class="progress-container">
+                        <div class="progress-track">
+                            <div class="progress-fill" style="width: ${progress}%;"></div>
+                        </div>
+                        <div class="progress-meta">
+                            <span>
+                                ${t.downloadedPieces !== undefined ? `${t.downloadedPieces + (t.skippedPieces || 0)} / ${t.totalPieces || '?'} pieces` : ''}
+                                ${t.speed ? ` • <span style="color: var(--accent-cyan);">${formatSpeed(t.speed)}</span>` : ''}
+                            </span>
+                            <span class="progress-percent">${progress.toFixed(1)}%</span>
+                        </div>
+                    </div>
+
+                    <div class="torrent-bottom">
+                        <div class="meta-group">
+                            <div class="meta-item">
+                                <span>Size:</span>
+                                <strong>${formatBytes(t.totalSize)}</strong>
+                            </div>
+                            <div class="meta-item">
+                                <span>Port:</span>
+                                <strong>${t.peerPort || 'N/A'}</strong>
+                            </div>
+                            <div class="meta-item">
+                                <span>Swarm Peers:</span>
+                                <strong>${t.peersCount !== undefined ? t.peersCount : '0'}</strong>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">
+                            ${t.error ? `<span style="color: var(--accent-rose);">Error: ${t.error}</span>` : `Peer ID: ${t.peerId || 'N/A'}`}
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function renderEmptyState(customMsg) {
+            const container = document.getElementById("torrents-container");
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                    </div>
+                    <div class="empty-title">No Active Transfers</div>
+                    <div class="empty-desc">
+                        ${customMsg || "You are not currently downloading or seeding any torrents. Click 'Download Torrent' or 'Start Seeding' above to begin transferring files over BitTorrent!"}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Actions
+        async function submitDownload() {
+            const selectVal = document.getElementById("dl-select-torrent").value;
+            const inputVal = document.getElementById("dl-input-torrent").value.trim();
+            const torrentFileName = inputVal || selectVal;
+            const peerPort = parseInt(document.getElementById("dl-port").value, 10);
+            const directPeerRaw = document.getElementById("dl-direct-peer").value.trim();
+
+            if (!torrentFileName) {
+                showToast("Please choose or enter a .torrent file name", "error");
+                return;
+            }
+
+            const body = { torrentFileName, peerPort };
+
+            if (directPeerRaw) {
+                const parts = directPeerRaw.split(":");
+                if (parts.length === 2) {
+                    body.peers = [{ ip: parts[0].trim(), port: parseInt(parts[1].trim(), 10) }];
+                }
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/torrents/download`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+
+                if (res.status === 202 || res.status === 200) {
+                    showToast(`Download started for ${data.torrent?.name || torrentFileName}`);
+                    closeModal("modal-download");
+                    fetchTorrents();
+                } else {
+                    showToast(data.message || "Failed to start download", "error");
+                }
+            } catch (err) {
+                showToast("Network error starting download: " + err.message, "error");
+            }
+        }
+
+        async function submitSeed() {
+            const selectVal = document.getElementById("seed-select-file").value;
+            const inputVal = document.getElementById("seed-input-path").value.trim();
+            let filePath = (inputVal || selectVal).replace(/^["']|["']$/g, '').trim();
+            const peerPort = parseInt(document.getElementById("seed-port").value, 10);
+
+            if (!filePath) {
+                showToast("Please enter or select a file path to seed", "error");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/torrents/seed`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ filePath, peerPort })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast(`Now seeding ${data.seeder?.name || filePath} on port ${peerPort}`);
+                    closeModal("modal-seed");
+                    fetchTorrents();
+                } else {
+                    showToast(data.message || "Failed to start seeding", "error");
+                }
+            } catch (err) {
+                showToast("Error starting seeder: " + err.message, "error");
+            }
+        }
+
+        async function submitCreateTorrent() {
+            let filePath = document.getElementById("create-input-path").value.trim().replace(/^["']|["']$/g, '').trim();
+
+            if (!filePath) {
+                showToast("Please enter a file path to package into a torrent", "error");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/torrents/create`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ filePath })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast(`Created .torrent for ${data.torrent.name}! Output: ${data.torrent.outputPath}`);
+                    closeModal("modal-create");
+                    loadAvailableFiles();
+                } else {
+                    showToast(data.message || "Failed to create torrent", "error");
+                }
+            } catch (err) {
+                showToast("Error creating torrent: " + err.message, "error");
+            }
+        }
+
+        async function stopTorrent(peerId, infoHash) {
+            try {
+                const res = await fetch(`${API_BASE}/api/torrents/stop`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ peerId, infoHash })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("Torrent stopped successfully");
+                    fetchTorrents();
+                } else {
+                    showToast(data.message || "Could not stop torrent", "error");
+                }
+            } catch (err) {
+                showToast("Error stopping torrent: " + err.message, "error");
+            }
+        }
+
+        // Initialize polling
+        checkHealth();
+        fetchTorrents();
+        loadAvailableFiles();
+
+        setInterval(() => {
+            fetchTorrents();
+        }, 1500);
+
+        setInterval(() => {
+            checkHealth();
+        }, 5000);
+    </script>
+</body>
+</html>

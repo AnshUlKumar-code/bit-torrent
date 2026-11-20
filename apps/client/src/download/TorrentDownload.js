@@ -8,7 +8,9 @@ async function downloadTorrent({
     torrentPath,
     peerId,
     peerPort,
-    downloadDir
+    downloadDir,
+    peers = [],
+    onProgress
 }) {
     if (!fs.existsSync(torrentPath)) {
         throw new Error("Torrent file not found: " + torrentPath);
@@ -31,7 +33,9 @@ async function downloadTorrent({
         torrent,
         peerId,
         peerPort,
-        downloadDir
+        downloadDir,
+        peers,
+        onProgress
     });
 }
 

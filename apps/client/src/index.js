@@ -3,6 +3,7 @@ const express = require("express");
 const config = require("./config");
 
 const createTorrent = require("./torrent/TorrentCreator");
+const parseTorrent = require("./torrent/TorrentParser");
 const downloadTorrent = require("./download/TorrentDownload");
 const startSeeding = require("./upload/SeederManager");
 
@@ -15,6 +16,7 @@ const app = express();
 app.use(express.json());
 
 const activePeerServers = new Map();
+const activeTorrents = new Map();
 
 const torrentDirectory = path.resolve(
     process.cwd(),
@@ -26,6 +28,11 @@ const downloadDirectory = path.resolve(
     config.downloadDir
 );
 
+const webPublicDirectory = path.resolve(__dirname, "../../web/public");
+if (fs.existsSync(webPublicDirectory)) {
+    app.use(express.static(webPublicDirectory));
+}
+
 // Health API
 app.get("/api/health", (req, res) => {
     res.status(200).json({
@@ -34,10 +41,46 @@ app.get("/api/health", (req, res) => {
     });
 });
 
+// Get available files (torrents in data/torrents and sample files in root)
+app.get("/api/torrents/available-files", (req, res) => {
+    try {
+        const torrents = fs.existsSync(torrentDirectory)
+            ? fs.readdirSync(torrentDirectory).filter(f => f.toLowerCase().endsWith(".torrent"))
+            : [];
+
+        const rootDir = path.resolve(__dirname, "../../../");
+        const rootFiles = fs.readdirSync(rootDir).filter(f => {
+            try {
+                const stat = fs.statSync(path.join(rootDir, f));
+                return stat.isFile() && !f.startsWith(".") && !f.endsWith(".json") && !f.endsWith(".md");
+            } catch {
+                return false;
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            torrents,
+            sampleFiles: rootFiles,
+            torrentDirectory,
+            downloadDirectory
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
 // Create torrent API
 app.post("/api/torrents/create", (req, res) => {
     try {
-        const { filePath } = req.body;
+        let { filePath } = req.body;
+
+        if (filePath && typeof filePath === "string") {
+            filePath = filePath.trim().replace(/^["']|["']$/g, "");
+        }
 
         if (!filePath) {
             return res.status(400).json({
@@ -72,7 +115,11 @@ app.post("/api/torrents/create", (req, res) => {
 // Start seeding API
 app.post("/api/torrents/seed", async (req, res) => {
     try {
-        const { filePath, peerId, peerPort } = req.body;
+        let { filePath, peerId, peerPort } = req.body;
+
+        if (filePath && typeof filePath === "string") {
+            filePath = filePath.trim().replace(/^["']|["']$/g, "");
+        }
 
         if (!filePath || !fs.existsSync(filePath)) {
             return res.status(400).json({
@@ -131,6 +178,33 @@ app.post("/api/torrents/seed", async (req, res) => {
             downloadDirectory
         });
 
+        const totalSize = fs.statSync(filePath).size;
+        const pieceCount = Math.ceil(totalSize / (256 * 1024));
+
+        const torrentState = {
+            infoHash: result.infoHash,
+            name: result.name,
+            torrentFileName: `${path.parse(filePath).name}.torrent`,
+            torrentPath: result.torrentPath,
+            peerId: selectedPeerId,
+            peerPort: selectedPeerPort,
+            status: "seeding",
+            progress: 100,
+            speed: 0,
+            totalSize,
+            downloadedPieces: pieceCount,
+            skippedPieces: 0,
+            totalPieces: pieceCount,
+            peersCount: 0,
+            outputPath: filePath,
+            server: result.server,
+            startedAt: Date.now(),
+            completedAt: Date.now(),
+            error: null
+        };
+
+        activeTorrents.set(`${result.infoHash}_${selectedPeerId}`, torrentState);
+
         activePeerServers.set(selectedPeerId, {
             server: result.server,
             name: result.name,
@@ -140,6 +214,7 @@ app.post("/api/torrents/seed", async (req, res) => {
 
         result.server.once("close", () => {
             activePeerServers.delete(selectedPeerId);
+            torrentState.status = "stopped";
         });
 
         res.status(200).json({
@@ -170,7 +245,9 @@ app.post("/api/torrents/download", async (req, res) => {
         const {
             torrentFileName,
             peerId,
-            peerPort
+            peerPort,
+            peers,
+            sync
         } = req.body;
 
         if (!torrentFileName) {
@@ -201,6 +278,9 @@ app.post("/api/torrents/download", async (req, res) => {
                 message: "Torrent file not found"
             });
         }
+
+        const torrentBuffer = fs.readFileSync(torrentPath);
+        const parsedTorrent = parseTorrent(torrentBuffer);
 
         const selectedPeerPort = peerPort ?? 5016;
 
@@ -235,35 +315,116 @@ app.post("/api/torrents/download", async (req, res) => {
             });
         }
 
+        const isPortBusy = Array.from(activeTorrents.values()).some(
+            t => t.peerPort === selectedPeerPort && (t.status === "downloading" || t.status === "seeding")
+        );
+        if (isPortBusy) {
+            return res.status(409).json({
+                success: false,
+                message: `Port ${selectedPeerPort} is already in use by another active peer. Please choose a different port (e.g. 5018).`
+            });
+        }
+
+        const pieceCount = Math.ceil(
+            parsedTorrent.length / parsedTorrent.pieceLength
+        );
+
+        const torrentState = {
+            infoHash: parsedTorrent.infoHash,
+            name: parsedTorrent.name,
+            torrentFileName,
+            peerId: selectedPeerId,
+            peerPort: selectedPeerPort,
+            status: "downloading",
+            progress: 0,
+            speed: 0,
+            totalSize: parsedTorrent.length,
+            downloadedPieces: 0,
+            skippedPieces: 0,
+            totalPieces: pieceCount,
+            peersCount: 0,
+            server: null,
+            outputPath: null,
+            startedAt: Date.now(),
+            completedAt: null,
+            error: null
+        };
+
+        const torrentKey = `${parsedTorrent.infoHash}_${selectedPeerId}`;
+        activeTorrents.set(torrentKey, torrentState);
+
         console.log("Starting torrent download:", torrentFileName);
 
-     const result = await downloadTorrent({
-    torrentPath,
-    peerId: selectedPeerId,
-    peerPort: selectedPeerPort,
-    downloadDir: path.join(downloadDirectory, "client-downloads")
-});
-
-        activePeerServers.set(selectedPeerId, {
-            server: result.server,
-            name: result.name,
+        const downloadPromise = downloadTorrent({
+            torrentPath,
+            peerId: selectedPeerId,
             peerPort: selectedPeerPort,
-            infoHash: null
-        });
+            downloadDir: path.join(downloadDirectory, "client-downloads"),
+            peers: Array.isArray(peers) ? peers : [],
+            onProgress: (progressData) => {
+                torrentState.downloadedPieces = progressData.downloadedPieces;
+                torrentState.skippedPieces = progressData.skippedPieces;
+                torrentState.progress = progressData.progress;
+                torrentState.speed = progressData.speed;
+                torrentState.peersCount = progressData.peersCount;
+            }
+        }).then((result) => {
+            torrentState.status = "seeding";
+            torrentState.progress = 100;
+            torrentState.speed = 0;
+            torrentState.outputPath = result.outputPath;
+            torrentState.server = result.server;
+            torrentState.completedAt = Date.now();
 
-        result.server.once("close", () => {
-            activePeerServers.delete(selectedPeerId);
-        });
-
-        res.status(200).json({
-            success: true,
-            message: "Torrent downloaded successfully",
-            download: {
+            activePeerServers.set(selectedPeerId, {
+                server: result.server,
                 name: result.name,
-                size: result.size,
-                outputPath: result.outputPath,
+                peerPort: selectedPeerPort,
+                infoHash: result.infoHash
+            });
+
+            result.server.once("close", () => {
+                activePeerServers.delete(selectedPeerId);
+                torrentState.status = "stopped";
+            });
+
+            return result;
+        }).catch((error) => {
+            console.log("Download error:", error.message);
+            torrentState.status = "failed";
+            torrentState.error = error.message;
+            torrentState.speed = 0;
+            throw error;
+        });
+
+        // If client requested synchronous execution
+        if (sync === true) {
+            const result = await downloadPromise;
+            return res.status(200).json({
+                success: true,
+                message: "Torrent downloaded successfully",
+                download: {
+                    name: result.name,
+                    size: result.size,
+                    outputPath: result.outputPath,
+                    peerId: selectedPeerId,
+                    peerPort: selectedPeerPort
+                }
+            });
+        }
+
+        // Default: asynchronous response immediately
+        res.status(202).json({
+            success: true,
+            message: "Torrent download started in background",
+            torrent: {
+                infoHash: parsedTorrent.infoHash,
+                name: parsedTorrent.name,
+                size: parsedTorrent.length,
+                pieceCount,
                 peerId: selectedPeerId,
-                peerPort: selectedPeerPort
+                peerPort: selectedPeerPort,
+                status: "downloading"
             }
         });
 
@@ -280,34 +441,70 @@ app.post("/api/torrents/download", async (req, res) => {
 // Stop sharing API
 app.post("/api/torrents/stop", (req, res) => {
     try {
-        const { peerId } = req.body;
+        const { peerId, infoHash } = req.body;
 
-        if (!peerId || typeof peerId !== "string") {
+        if (!peerId && !infoHash) {
             return res.status(400).json({
                 success: false,
-                message: "Peer ID is required"
+                message: "Either peerId or infoHash is required"
             });
         }
 
-        const activePeer = activePeerServers.get(peerId);
+        let targetPeerId = peerId;
+        let torrent = null;
 
-        if (!activePeer) {
+        if (infoHash) {
+            for (const t of activeTorrents.values()) {
+                if (t.infoHash === infoHash) {
+                    torrent = t;
+                    targetPeerId = t.peerId;
+                    break;
+                }
+            }
+        }
+
+        if (!torrent && targetPeerId) {
+            for (const t of activeTorrents.values()) {
+                if (t.peerId === targetPeerId) {
+                    torrent = t;
+                    break;
+                }
+            }
+        }
+
+        const activePeer = targetPeerId ? activePeerServers.get(targetPeerId) : null;
+
+        if (!activePeer && !torrent) {
             return res.status(404).json({
                 success: false,
-                message: "Active peer not found"
+                message: "Active torrent or peer not found"
             });
         }
 
-        activePeerServers.delete(peerId);
+        if (targetPeerId) {
+            activePeerServers.delete(targetPeerId);
+        }
 
-        activePeer.server.close(() => {
-            console.log("Peer server stopped:", peerId);
-        });
+        if (torrent) {
+            torrent.status = "stopped";
+            torrent.speed = 0;
+            if (torrent.server) {
+                torrent.server.close();
+                torrent.server = null;
+            }
+        }
+
+        if (activePeer && activePeer.server) {
+            activePeer.server.close(() => {
+                console.log("Peer server stopped:", targetPeerId);
+            });
+        }
 
         res.status(200).json({
             success: true,
             message: "Sharing stopped successfully",
-            peerId
+            peerId: targetPeerId,
+            infoHash: torrent?.infoHash
         });
 
     } catch (error) {
@@ -316,6 +513,45 @@ app.post("/api/torrents/stop", (req, res) => {
             message: error.message
         });
     }
+});
+
+// Get all torrents status API (for progress tracking & UI)
+app.get("/api/torrents/status", (req, res) => {
+    const torrents = Array.from(activeTorrents.values()).map(
+        ({ server, ...torrentInfo }) => torrentInfo
+    );
+
+    res.status(200).json({
+        success: true,
+        count: torrents.length,
+        torrents
+    });
+});
+
+// Get single torrent status API
+app.get("/api/torrents/status/:infoHash", (req, res) => {
+    const { infoHash } = req.params;
+    let torrent = null;
+    for (const t of activeTorrents.values()) {
+        if (t.infoHash === infoHash) {
+            torrent = t;
+            break;
+        }
+    }
+
+    if (!torrent) {
+        return res.status(404).json({
+            success: false,
+            message: "Torrent not found"
+        });
+    }
+
+    const { server, ...torrentInfo } = torrent;
+
+    res.status(200).json({
+        success: true,
+        torrent: torrentInfo
+    });
 });
 
 // Get active peers API
