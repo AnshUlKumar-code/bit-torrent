@@ -1434,8 +1434,9 @@
                                 <strong>${t.peersCount !== undefined ? t.peersCount : '0'}</strong>
                             </div>
                         </div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);">
-                            ${t.error ? `<span style="color: var(--accent-rose);">Error: ${t.error}</span>` : `Peer ID: ${t.peerId || 'N/A'}`}
+                        <div style="display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.75rem; color: var(--text-muted);">
+                            <div>📁 <strong>Location:</strong> <span style="color: var(--accent-green); font-family: monospace;">data/downloads/${t.name || (t.torrentFileName ? t.torrentFileName.replace('.torrent','') : '')}</span></div>
+                            <div>${t.error ? `<span style="color: var(--accent-rose);">Error: ${t.error}</span>` : `Peer ID: ${t.peerId || 'N/A'}`}</div>
                         </div>
                     </div>
                 `;

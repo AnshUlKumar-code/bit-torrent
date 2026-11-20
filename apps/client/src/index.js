@@ -647,7 +647,7 @@ app.post("/api/torrents/download", async (req, res) => {
             torrentPath,
             peerId: selectedPeerId,
             peerPort: selectedPeerPort,
-            downloadDir: path.join(downloadDirectory, "client-downloads"),
+            downloadDir: downloadDirectory,
             peers: combinedPeers,
             onProgress: (progressData) => {
                 torrentState.downloadedPieces = progressData.downloadedPieces;
