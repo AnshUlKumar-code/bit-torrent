@@ -20,7 +20,8 @@ async function downloadFile({
     torrent,
     downloadDir,
     peerId,
-    onProgress
+    onProgress,
+    onPieceDownloaded
 }) {
     // Support either a peer list or one individual peer.
     const availablePeers = Array.isArray(peers)
@@ -174,6 +175,9 @@ async function downloadFile({
                 downloadedPieces++;
                 bytesDownloadedSinceStart += actualPieceLength;
                 reportProgress();
+                if (typeof onPieceDownloaded === "function") {
+                    onPieceDownloaded(i);
+                }
 
                 console.log(
                     `Piece ${i} completed from ${selectedPeer.ip}:${selectedPeer.port}`

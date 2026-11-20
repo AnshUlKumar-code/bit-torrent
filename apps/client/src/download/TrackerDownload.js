@@ -146,13 +146,18 @@ async function downloadFromTracker({
 
         console.log("Usable peers:", usablePeers.length);
 
-        // Download pieces concurrently from the available peers.
+        // Download pieces concurrently from available peers while simultaneously seeding downloaded pieces
         const result = await downloadFile({
             peers: usablePeers,
             torrent,
             downloadDir,
             peerId,
-            onProgress
+            onProgress,
+            onPieceDownloaded: (pieceIndex) => {
+                if (server && typeof server.broadcastHave === "function") {
+                    server.broadcastHave(pieceIndex);
+                }
+            }
         });
 
         console.log("Download completed successfully.");

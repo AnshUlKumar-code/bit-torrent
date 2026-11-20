@@ -10,7 +10,8 @@ const {
     createMessage,
     parseMessage,
     parseRequestMessage,
-    createPieceMessage
+    createPieceMessage,
+    createHaveMessage
 } = require("./WireProtocol");
 
 const {
@@ -29,12 +30,20 @@ function startPeerServer(port, infoHash, peerId, options = {}) {
         pieceCount = 1
     } = options;
 
+    const activeSockets = new Set();
+
     const server = net.createServer((socket) => {
         console.log("Peer connected:", socket.remoteAddress);
 
         let received = Buffer.alloc(0);
         let handshakeCompleted = false;
         let isChoked = true;
+
+        socket.on("close", () => activeSockets.delete(socket));
+        socket.on("error", (error) => {
+            activeSockets.delete(socket);
+            console.log("Socket error:", error.message);
+        });
 
         socket.on("data", (data) => {
             received = Buffer.concat([received, data]);
@@ -54,6 +63,7 @@ function startPeerServer(port, infoHash, peerId, options = {}) {
                     }
 
                     handshakeCompleted = true;
+                    activeSockets.add(socket);
                     received = received.subarray(68);
 
                     console.log("Handshake verified");
@@ -157,6 +167,18 @@ function startPeerServer(port, infoHash, peerId, options = {}) {
             console.log("Socket error:", error.message);
         });
     });
+
+    server.broadcastHave = function(pieceIndex) {
+        if (activeSockets.size === 0) return;
+        const msg = createHaveMessage(pieceIndex);
+        for (const s of activeSockets) {
+            try {
+                if (s.writable) s.write(msg);
+            } catch {
+                activeSockets.delete(s);
+            }
+        }
+    };
 
     server.listen(port, "0.0.0.0", () => {
         console.log(`Peer server listening on 0.0.0.0:${port}`);
