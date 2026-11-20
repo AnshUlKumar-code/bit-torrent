@@ -2,6 +2,7 @@
 const startPeerServer = require("../peer/PeerServer");
 const { announce } = require("../tracker/TrackerClient");
 const downloadFile = require("./DownloadManager");
+const config = require("../config");
 
 function waitForServer(server) {
     return new Promise((resolve, reject) => {
@@ -92,39 +93,44 @@ async function downloadFromTracker({
         }
 
         if (!trackerResponse) {
-            throw new Error("Failed to contact any tracker from torrent announce list");
+            if (initialPeers.length === 0) {
+                throw new Error("Failed to contact any tracker from torrent announce list and no peers available");
+            }
+            console.log("No tracker responded, but direct/local peers are available:", initialPeers.length);
         }
 
-        const heartbeatInterval = Math.min(trackerResponse.interval || 45, 60);
+        const heartbeatInterval = trackerResponse ? Math.min(trackerResponse.interval || 45, 60) : 45;
 
-        // Refresh registration periodically
-        heartbeat = setInterval(async () => {
-            try {
-                await announce(
-                    torrent.infoHash,
-                    peerId,
-                    peerPort,
-                    {
-                        trackerUrl: activeTrackerUrl,
-                        left: torrent.length
-                    }
-                );
+        // Refresh registration periodically if tracker is active
+        if (trackerResponse && activeTrackerUrl) {
+            heartbeat = setInterval(async () => {
+                try {
+                    await announce(
+                        torrent.infoHash,
+                        peerId,
+                        peerPort,
+                        {
+                            trackerUrl: activeTrackerUrl,
+                            left: torrent.length
+                        }
+                    );
 
-                console.log("Downloader heartbeat sent:", peerId);
-            } catch (error) {
-                console.log(
-                    "Downloader heartbeat failed:",
-                    error.message
-                );
-            }
-        }, heartbeatInterval * 1000);
+                    console.log("Downloader heartbeat sent:", peerId);
+                } catch (error) {
+                    console.log(
+                        "Downloader heartbeat failed:",
+                        error.message
+                    );
+                }
+            }, heartbeatInterval * 1000);
+        }
 
         server.once("close", () => {
-            clearInterval(heartbeat);
+            if (heartbeat) clearInterval(heartbeat);
             console.log("Downloader heartbeat stopped:", peerId);
         });
 
-        const discoveredPeers = trackerResponse.peers || [];
+        const discoveredPeers = trackerResponse?.peers || [];
         const combinedPeers = [...initialPeers, ...discoveredPeers];
 
         console.log("Total peers available (initial + discovered):", combinedPeers.length);
